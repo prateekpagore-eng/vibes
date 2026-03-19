@@ -9,19 +9,26 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0d0d0d;
-  --board-dark: #1a1a2e;
-  --board-light: #2d2d44;
-  --accent: #f5a623;
-  --accent-dim: rgba(245,166,35,0.15);
-  --accent-glow: rgba(245,166,35,0.4);
-  --panel-bg: #111118;
-  --panel-border: #222233;
-  --text: #e0e0e0;
-  --text-dim: #666680;
-  --white-piece: #f0f0f0;
-  --black-piece: #1a1a1a;
-  --check-color: rgba(255,60,60,0.5);
+  --bg: #ddd5c0;
+  --bg2: #e8e0cf;
+  --board-light: #f0d9b5;
+  --board-dark:  #b58863;
+  --board-border: #8a6820;
+  --panel-bg: #f5efe3;
+  --panel-border: #c8b898;
+  --panel-shadow: rgba(120,90,40,0.12);
+  --text: #2a1f10;
+  --text-dim: #8a7460;
+  --accent: #b56a00;
+  --accent-light: #d4820a;
+  --accent-dim: rgba(181,106,0,0.14);
+  --accent-glow: rgba(181,106,0,0.35);
+  --white-piece: #fdf6e3;
+  --black-piece: #1c0e00;
+  --check-color: rgba(210,40,40,0.42);
+  --sel-color: rgba(205,160,40,0.5);
+  --move-dot: rgba(60,120,20,0.45);
+  --capture-ring: rgba(190,40,40,0.7);
   --font-heading: 'Rajdhani', sans-serif;
   --font-mono: 'Share Tech Mono', monospace;
 }
@@ -34,572 +41,582 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow-x: hidden;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(200,160,80,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(180,140,60,0.10) 0%, transparent 55%);
 }
 
-/* Noise texture overlay */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.4;
-}
-
+/* ── HEADER ────────────────────────────────────────── */
 header {
   width: 100%;
-  padding: 16px 32px;
+  padding: 12px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  border-bottom: 2px solid var(--panel-border);
+  box-shadow: 0 2px 12px var(--panel-shadow);
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .logo {
   font-family: var(--font-heading);
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--accent);
-  text-shadow: 0 0 20px var(--accent-glow);
 }
-
 .logo span { color: var(--text); }
 
-.header-actions {
+.header-center {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  color: var(--text-dim);
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 10px;
 }
+.mode-badge {
+  background: var(--accent-dim);
+  border: 1px solid var(--panel-border);
+  padding: 3px 10px;
+  border-radius: 2px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.diff-badge {
+  padding: 3px 10px;
+  border-radius: 2px;
+  font-weight: 700;
+  border: 1px solid;
+}
+.diff-badge.easy   { background: rgba(40,140,40,0.1);  color: #2a7a2a; border-color: rgba(40,140,40,0.3); }
+.diff-badge.medium { background: rgba(200,130,0,0.1);  color: #906010; border-color: rgba(200,130,0,0.3); }
+.diff-badge.hard   { background: rgba(180,30,30,0.1);  color: #8a1a1a; border-color: rgba(180,30,30,0.3); }
+
+.header-actions { display: flex; gap: 10px; }
 
 .btn {
   font-family: var(--font-heading);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
-  padding: 8px 20px;
-  border: 1px solid var(--panel-border);
+  padding: 7px 18px;
+  border: 1.5px solid var(--panel-border);
   background: var(--panel-bg);
   color: var(--text);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.18s;
+  border-radius: 2px;
 }
-
-.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 .btn.primary { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-.btn.primary:hover { background: rgba(245,166,35,0.25); }
+.btn.primary:hover { background: rgba(181,106,0,0.22); }
 
+/* ── GAME WRAPPER ──────────────────────────────────── */
 .game-wrapper {
   display: flex;
-  gap: 20px;
-  padding: 20px;
+  gap: 18px;
+  padding: 18px;
   align-items: flex-start;
-  position: relative;
-  z-index: 1;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1180px;
 }
 
-/* LEFT PANEL */
-.swap-panel {
-  width: 240px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
+/* ── PANELS ────────────────────────────────────────── */
 .panel-card {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  padding: 16px;
+  border: 1.5px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 14px;
+  box-shadow: 0 2px 8px var(--panel-shadow);
 }
 
 .panel-label {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--text-dim);
-  margin-bottom: 10px;
+  margin-bottom: 9px;
+}
+
+/* ── LEFT PANEL ────────────────────────────────────── */
+.swap-panel {
+  width: 210px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.round-display {
+  font-family: var(--font-mono);
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .swap-display {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 16px 8px;
-  font-size: 2.2rem;
-  border: 1px solid var(--panel-border);
-  background: rgba(0,0,0,0.3);
+  gap: 10px;
+  padding: 14px 6px;
+  font-size: 2.1rem;
+  border: 1.5px solid var(--panel-border);
+  background: rgba(180,140,60,0.07);
+  border-radius: 3px;
   transition: all 0.3s;
+  line-height: 1;
 }
-
 .swap-display.imminent {
   border-color: var(--accent);
-  box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px rgba(245,166,35,0.05);
-  animation: pulse-border 1s ease-in-out infinite;
+  background: var(--accent-dim);
+  animation: pulse-border 1.1s ease-in-out infinite;
 }
-
 @keyframes pulse-border {
-  0%, 100% { box-shadow: 0 0 15px var(--accent-glow), inset 0 0 15px rgba(245,166,35,0.05); }
-  50% { box-shadow: 0 0 35px var(--accent-glow), inset 0 0 25px rgba(245,166,35,0.1); }
+  0%,100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50%      { box-shadow: 0 0 0 5px rgba(181,106,0,0.0); }
 }
 
-.swap-arrow {
-  color: var(--accent);
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-
-.swap-piece-white { color: #ddd; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-.swap-piece-black { color: #888; }
+.swap-arrow { color: var(--accent); font-size: 1.1rem; font-weight: 800; }
+.swap-sym { color: var(--text); }
 
 .next-swap-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 10px;
-  font-size: 1.4rem;
-  opacity: 0.6;
-  border: 1px dashed var(--panel-border);
-}
-
-.round-display {
-  font-family: var(--font-mono);
-  text-align: center;
-  font-size: 1.1rem;
-  color: var(--accent);
-}
-
-.round-label {
-  font-size: 0.65rem;
-  letter-spacing: 3px;
-  color: var(--text-dim);
-  display: block;
-  margin-top: 2px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px; font-size: 1.35rem; opacity: 0.65;
+  border: 1.5px dashed var(--panel-border); border-radius: 3px; line-height: 1;
 }
 
 .turn-indicator {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1px solid var(--panel-border);
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border: 1.5px solid var(--panel-border); border-radius: 3px;
+  background: rgba(180,140,60,0.06);
 }
-
 .turn-dot {
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  transition: all 0.3s;
+  width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; transition: all 0.3s;
 }
+.turn-dot.white { background: #f8f2e4; border: 2px solid #8a7040; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+.turn-dot.black { background: #1c0e00; border: 2px solid #5a3a10; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+.turn-text { font-family: var(--font-heading); font-size: 0.88rem; font-weight: 700; letter-spacing: 1px; color: var(--text); }
 
-.turn-dot.white { background: #f0f0f0; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
-.turn-dot.black { background: #444; box-shadow: 0 0 8px rgba(0,0,0,0.8); border: 1px solid #666; }
-
-.turn-text {
-  font-family: var(--font-heading);
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 1px;
+.thinking-dot {
+  margin-left: auto;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  animation: blink 0.7s ease-in-out infinite;
+  display: none;
 }
+.thinking-dot.visible { display: block; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
 
 .status-bar {
-  padding: 10px 14px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 1px;
-  text-align: center;
-  border: 1px solid var(--panel-border);
-  color: var(--text-dim);
-  transition: all 0.3s;
+  padding: 9px 12px; font-family: var(--font-mono); font-size: 0.73rem;
+  letter-spacing: 1px; text-align: center; border: 1.5px solid var(--panel-border);
+  border-radius: 3px; color: var(--text-dim); transition: all 0.25s;
+  background: var(--panel-bg);
 }
-
-.status-bar.check { color: #ff6060; border-color: rgba(255,60,60,0.4); background: rgba(255,60,60,0.1); }
+.status-bar.check     { color: #b01818; border-color: rgba(180,24,24,0.45); background: rgba(200,30,30,0.09); }
 .status-bar.checkmate { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
-.status-bar.stalemate { color: #8888aa; border-color: #8888aa; }
+.status-bar.stalemate { color: #7a6040; border-color: #c0a070; }
 
-/* CENTER BOARD */
+/* ── CENTER BOARD ──────────────────────────────────── */
 .board-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 
-.board-container {
-  position: relative;
-  display: flex;
-}
+.board-container { display: flex; align-items: flex-start; }
 
 .rank-labels {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  padding: 4px 6px 4px 0;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  width: 20px;
+  display: flex; flex-direction: column; justify-content: space-around;
+  padding: 0 5px 0 0; font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--text-dim); width: 18px; align-self: stretch;
 }
+.rank-labels div { height: 70px; display: flex; align-items: center; }
 
 .file-labels {
-  display: flex;
-  justify-content: space-around;
-  padding: 4px 0 0 20px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--text-dim);
+  display: flex; padding: 5px 0 0 18px;
+  font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);
 }
+.file-labels div { width: 70px; text-align: center; }
 
 .board {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  border: 2px solid var(--panel-border);
-  box-shadow: 0 0 40px rgba(0,0,0,0.8);
+  grid-template-columns: repeat(8, 70px);
+  grid-template-rows: repeat(8, 70px);
+  border: 3px solid var(--board-border);
+  border-radius: 2px;
+  box-shadow: 0 4px 28px rgba(100,60,0,0.35), 0 1px 4px rgba(0,0,0,0.2);
+  overflow: hidden;
 }
 
 .square {
-  width: 72px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  position: relative;
-  transition: background 0.15s;
+  width: 70px; height: 70px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  transition: filter 0.1s;
   user-select: none;
 }
-
 .square.light { background: var(--board-light); }
 .square.dark  { background: var(--board-dark); }
+.square:hover { filter: brightness(1.06); }
 
-.square.selected {
-  background: rgba(245,166,35,0.35) !important;
-  box-shadow: inset 0 0 0 3px var(--accent);
+.square.selected::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--sel-color); z-index: 0;
 }
+.square.selected { box-shadow: inset 0 0 0 3px #d4a010; }
 
 .square.valid-move::after {
-  content: '';
-  position: absolute;
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  background: rgba(245,166,35,0.45);
-  pointer-events: none;
+  content: ''; position: absolute;
+  width: 23px; height: 23px; border-radius: 50%;
+  background: var(--move-dot); z-index: 1; pointer-events: none;
 }
+.square.valid-capture { box-shadow: inset 0 0 0 4px var(--capture-ring); }
 
-.square.valid-capture {
-  box-shadow: inset 0 0 0 3px rgba(245,166,35,0.6);
-}
+.square.last-move-from { background: rgba(210,180,60,0.38) !important; }
+.square.last-move-to   { background: rgba(210,180,60,0.52) !important; }
 
 .square.in-check {
   background: var(--check-color) !important;
-  animation: check-flash 0.5s ease-out;
+  animation: check-pulse 0.5s ease-out;
 }
-
-@keyframes check-flash {
-  0% { background: rgba(255,60,60,0.9) !important; }
+@keyframes check-pulse {
+  0% { background: rgba(210,40,40,0.85) !important; }
   100% { background: var(--check-color) !important; }
 }
 
+/* ── PIECES ────────────────────────────────────────── */
 .piece {
-  font-size: 2.6rem;
+  font-size: 2.55rem;
   line-height: 1;
-  position: relative;
-  z-index: 1;
-  transition: transform 0.15s;
+  position: relative; z-index: 2;
   cursor: pointer;
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
+  transition: transform 0.12s;
+  pointer-events: none;
+  /* crisp rendering */
+  font-variant-numeric: normal;
 }
+.square:hover .piece { transform: scale(1.06); }
+.square.selected .piece { transform: scale(1.08); }
 
-.piece.white-piece { color: var(--white-piece); }
-.piece.black-piece { color: #333; filter: drop-shadow(0 0 2px rgba(255,255,255,0.3)) drop-shadow(0 2px 3px rgba(0,0,0,0.9)); }
+/* White pieces: ivory fill with dark outline for visibility */
+.piece.white-piece {
+  color: var(--white-piece);
+  -webkit-text-stroke: 1.6px #4a3010;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.35);
+  paint-order: stroke fill;
+}
+/* Black pieces: dark espresso, crisp */
+.piece.black-piece {
+  color: var(--black-piece);
+  -webkit-text-stroke: 0.5px #4a3010;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.15), 0 2px 4px rgba(0,0,0,0.4);
+}
 
 .piece.transformed {
-  animation: transform-flash 0.6s ease-out;
+  animation: transform-flash 0.65s ease-out forwards;
 }
-
 @keyframes transform-flash {
-  0%   { filter: drop-shadow(0 0 12px var(--accent)) brightness(2); transform: scale(1.3); }
-  50%  { filter: drop-shadow(0 0 6px var(--accent)) brightness(1.5); transform: scale(1.1); }
-  100% { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); transform: scale(1); }
+  0%   { transform: scale(1.4) rotate(-8deg); filter: brightness(1.8) drop-shadow(0 0 10px var(--accent)); }
+  40%  { transform: scale(1.15) rotate(4deg); filter: brightness(1.3) drop-shadow(0 0 5px var(--accent)); }
+  100% { transform: scale(1) rotate(0); filter: none; }
 }
 
-.piece.white-piece.transformed {
-  animation: transform-flash-white 0.6s ease-out;
-}
-@keyframes transform-flash-white {
-  0%   { color: var(--accent); filter: drop-shadow(0 0 12px var(--accent)); transform: scale(1.3); }
-  50%  { color: #ffe0a0; filter: drop-shadow(0 0 6px var(--accent)); transform: scale(1.1); }
-  100% { color: var(--white-piece); filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); transform: scale(1); }
-}
-
+/* Transformed piece badge */
 .type-badge {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  font-size: 0.62rem;
+  bottom: 2px; right: 2px;
+  font-size: 0.58rem;
   padding: 1px 4px;
   border-radius: 3px;
   font-family: var(--font-mono);
-  z-index: 2;
+  z-index: 3;
   pointer-events: none;
-  font-weight: bold;
+  font-weight: 700;
   line-height: 1.4;
 }
+.type-badge.knight { background: #ddeeff; color: #1a4a7a; border: 1px solid #6aaae0; }
+.type-badge.bishop { background: #fff3dd; color: #7a4a00; border: 1px solid #d0a030; }
+.type-badge.rook   { background: #ddffdd; color: #1a5a1a; border: 1px solid #5ab05a; }
 
-.type-badge.knight { background: #1a3a4a; color: #4af; border: 1px solid #4af; }
-.type-badge.bishop { background: #2a2a1a; color: #fa4; border: 1px solid #fa4; }
-.type-badge.rook   { background: #1a2a1a; color: #4a4; border: 1px solid #4a4; }
-
-/* RIGHT PANEL */
+/* ── RIGHT PANEL ───────────────────────────────────── */
 .log-panel {
-  width: 220px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  width: 210px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 10px;
 }
 
 .log-scroll {
-  height: 380px;
-  overflow-y: auto;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid var(--panel-border);
-  padding: 8px;
+  height: 340px; overflow-y: auto;
+  background: rgba(180,140,60,0.06);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 3px; padding: 7px;
 }
-
 .log-scroll::-webkit-scrollbar { width: 4px; }
 .log-scroll::-webkit-scrollbar-track { background: transparent; }
 .log-scroll::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
 
 .log-entry {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  padding: 3px 4px;
-  line-height: 1.5;
-  color: var(--text-dim);
-  display: flex;
-  gap: 6px;
+  font-family: var(--font-mono); font-size: 0.70rem;
+  padding: 2px 4px; line-height: 1.6;
+  display: flex; gap: 6px; color: var(--text-dim);
 }
-
-.log-entry .move-num { color: var(--text-dim); min-width: 28px; }
+.log-entry .move-num { color: var(--text-dim); min-width: 26px; }
 .log-entry .move-white { color: var(--text); }
-.log-entry .move-black { color: #aaa; }
+.log-entry .move-black { color: #6a5030; }
 
 .log-swap {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  padding: 5px 8px;
-  color: var(--accent);
-  text-align: center;
-  border-top: 1px dashed rgba(245,166,35,0.3);
-  border-bottom: 1px dashed rgba(245,166,35,0.3);
-  margin: 3px 0;
-  letter-spacing: 1px;
+  font-family: var(--font-mono); font-size: 0.70rem;
+  padding: 4px 8px; color: var(--accent); text-align: center;
+  border-top: 1px dashed rgba(181,106,0,0.35);
+  border-bottom: 1px dashed rgba(181,106,0,0.35);
+  margin: 4px 0; letter-spacing: 1px;
+  background: rgba(181,106,0,0.05);
 }
 
-.graveyard {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  padding: 12px;
+.graveyard { padding: 12px; }
+.graveyard-section-label {
+  font-family: var(--font-mono); font-size: 0.58rem;
+  color: var(--text-dim); margin-bottom: 4px; letter-spacing: 2px;
 }
-
 .graveyard-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  min-height: 28px;
-  margin-bottom: 6px;
+  display: flex; flex-wrap: wrap; gap: 1px;
+  min-height: 26px; margin-bottom: 8px;
 }
+.graveyard-piece { font-size: 1.05rem; opacity: 0.75; }
+.graveyard-piece.wpiece { color: #fdf0d0; -webkit-text-stroke: 1px #5a3a10; }
+.graveyard-piece.bpiece { color: #1c0e00; -webkit-text-stroke: 0px; }
 
-.graveyard-piece {
-  font-size: 1.1rem;
-  opacity: 0.7;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+/* ── SETUP OVERLAY ─────────────────────────────────── */
+.setup-overlay {
+  position: fixed; inset: 0;
+  background: rgba(40,28,10,0.72);
+  display: none; align-items: center; justify-content: center;
+  z-index: 200; backdrop-filter: blur(3px);
 }
+.setup-overlay.active { display: flex; }
 
-.graveyard-piece.white-capture { color: #ccc; }
-.graveyard-piece.black-capture { color: #555; filter: drop-shadow(0 0 1px rgba(255,255,255,0.2)); }
+.setup-card {
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 36px 40px;
+  width: 420px;
+  box-shadow: 0 12px 48px rgba(80,50,10,0.4);
+  display: flex; flex-direction: column; gap: 22px;
+}
+.setup-card h1 {
+  font-family: var(--font-heading); font-size: 1.7rem;
+  font-weight: 700; letter-spacing: 4px;
+  text-transform: uppercase; text-align: center;
+  color: var(--accent);
+}
+.setup-section { display: flex; flex-direction: column; gap: 8px; }
+.setup-section > label {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.option-group {
+  display: flex; gap: 8px;
+}
+.opt-btn {
+  flex: 1; padding: 10px 8px;
+  font-family: var(--font-heading); font-size: 0.88rem;
+  font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  border: 1.5px solid var(--panel-border);
+  background: rgba(180,140,60,0.06);
+  color: var(--text-dim); cursor: pointer;
+  border-radius: 3px; transition: all 0.18s; text-align: center;
+}
+.opt-btn:hover { border-color: var(--accent-light); color: var(--text); }
+.opt-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); font-weight: 700; }
 
-/* Promotion modal */
+.opt-btn.diff-easy.active   { border-color: #3a8a3a; background: rgba(40,140,40,0.1); color: #2a6a2a; }
+.opt-btn.diff-medium.active { border-color: #b08000; background: rgba(180,120,0,0.1); color: #806000; }
+.opt-btn.diff-hard.active   { border-color: #b02020; background: rgba(180,30,30,0.1); color: #901010; }
+
+.setup-divider { border: none; border-top: 1px solid var(--panel-border); }
+
+.btn.large { padding: 12px 24px; font-size: 1rem; letter-spacing: 3px; width: 100%; }
+
+#pvcOptions { display: none; flex-direction: column; gap: 16px; }
+#pvcOptions.visible { display: flex; }
+
+/* ── PROMOTION MODAL ───────────────────────────────── */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
+  position: fixed; inset: 0;
+  background: rgba(40,28,10,0.72);
+  display: none; align-items: center; justify-content: center;
+  z-index: 150; backdrop-filter: blur(2px);
 }
-
 .modal-overlay.active { display: flex; }
 
 .modal {
-  background: #111118;
-  border: 1px solid var(--accent);
-  padding: 24px;
-  text-align: center;
-  box-shadow: 0 0 60px rgba(245,166,35,0.3);
-}
-
-.modal h2 {
-  font-family: var(--font-heading);
-  font-size: 1.2rem;
-  letter-spacing: 3px;
-  color: var(--accent);
-  margin-bottom: 16px;
-}
-
-.promo-options {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-.promo-btn {
-  font-size: 2.4rem;
-  width: 64px; height: 64px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  border: 1px solid var(--panel-border);
   background: var(--panel-bg);
-  transition: all 0.2s;
-  color: var(--text);
+  border: 2px solid var(--accent);
+  border-radius: 5px; padding: 24px 28px;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(80,50,10,0.4);
 }
-.promo-btn:hover { border-color: var(--accent); transform: scale(1.1); }
+.modal h2 {
+  font-family: var(--font-heading); font-size: 1.1rem;
+  letter-spacing: 3px; color: var(--accent); margin-bottom: 16px;
+}
+.promo-options { display: flex; gap: 10px; justify-content: center; }
+.promo-btn {
+  font-size: 2.6rem; width: 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: 1.5px solid var(--panel-border);
+  background: var(--panel-bg); border-radius: 4px;
+  transition: all 0.18s; color: var(--text);
+  -webkit-text-stroke: 1.2px #4a3010;
+}
+.promo-btn:hover { border-color: var(--accent); transform: scale(1.08); background: var(--accent-dim); }
 
-/* Game over overlay */
+/* ── GAME OVER ─────────────────────────────────────── */
 .gameover-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 99;
-  flex-direction: column;
-  gap: 24px;
+  position: fixed; inset: 0;
+  background: rgba(30,20,5,0.82);
+  display: none; align-items: center; justify-content: center;
+  z-index: 99; flex-direction: column; gap: 16px;
+  backdrop-filter: blur(4px);
 }
-
 .gameover-overlay.active { display: flex; }
 
-.gameover-title {
-  font-family: var(--font-heading);
-  font-size: 3rem;
-  font-weight: 700;
-  letter-spacing: 6px;
-  color: var(--accent);
-  text-shadow: 0 0 40px var(--accent-glow);
-  text-transform: uppercase;
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-@keyframes glow-pulse {
-  0%, 100% { text-shadow: 0 0 20px var(--accent-glow); }
-  50% { text-shadow: 0 0 60px var(--accent-glow), 0 0 100px rgba(245,166,35,0.3); }
-}
-
-.gameover-sub {
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  color: var(--text-dim);
-  letter-spacing: 2px;
-}
-
-/* Swap announcement banner */
-.swap-banner {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.8);
-  background: rgba(10,10,20,0.95);
+.gameover-card {
+  background: var(--panel-bg);
   border: 2px solid var(--accent);
-  padding: 24px 48px;
-  text-align: center;
-  z-index: 98;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.3s;
-  box-shadow: 0 0 80px var(--accent-glow);
+  border-radius: 6px; padding: 40px 60px;
+  text-align: center; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 12px 60px rgba(80,50,10,0.5);
+}
+.gameover-title {
+  font-family: var(--font-heading); font-size: 2.6rem; font-weight: 700;
+  letter-spacing: 6px; color: var(--accent); text-transform: uppercase;
+}
+.gameover-sub {
+  font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-dim); letter-spacing: 2px;
 }
 
+/* ── SWAP BANNER ───────────────────────────────────── */
+.swap-banner {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  background: var(--panel-bg);
+  border: 2px solid var(--accent);
+  border-radius: 5px; padding: 20px 48px;
+  text-align: center; z-index: 98;
+  opacity: 0; pointer-events: none;
+  transition: all 0.28s cubic-bezier(0.175,0.885,0.32,1.275);
+  box-shadow: 0 8px 40px rgba(80,50,10,0.4);
+}
 .swap-banner.show {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  opacity: 1; transform: translate(-50%, -50%) scale(1);
 }
-
 .swap-banner-label {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 4px;
-  color: var(--text-dim);
-  margin-bottom: 8px;
+  font-family: var(--font-mono); font-size: 0.60rem;
+  letter-spacing: 4px; color: var(--text-dim); margin-bottom: 6px;
 }
-
 .swap-banner-content {
-  font-size: 3rem;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  color: var(--accent);
+  font-size: 2.8rem; display: flex; align-items: center;
+  gap: 14px; color: var(--text); justify-content: center;
+  -webkit-text-stroke: 1px #4a3010;
 }
+.swap-banner-arrow { color: var(--accent); font-size: 1.4rem; -webkit-text-stroke: 0; }
 </style>
 </head>
 <body>
 
+<!-- ── SETUP OVERLAY ──────────────────────────────────── -->
+<div class="setup-overlay active" id="setupOverlay">
+  <div class="setup-card">
+    <h1>Metamorph<br>Chess</h1>
+    <hr class="setup-divider">
+
+    <div class="setup-section">
+      <label>Game Mode</label>
+      <div class="option-group">
+        <div class="opt-btn active" id="modePvp" onclick="selectMode('pvp')">Player vs Player</div>
+        <div class="opt-btn"        id="modePvc" onclick="selectMode('pvc')">vs Computer</div>
+      </div>
+    </div>
+
+    <div id="pvcOptions">
+      <div class="setup-section">
+        <label>Difficulty</label>
+        <div class="option-group">
+          <div class="opt-btn diff-easy"   id="diffEasy"   onclick="selectDiff('easy')">Easy</div>
+          <div class="opt-btn diff-medium active" id="diffMedium" onclick="selectDiff('medium')">Medium</div>
+          <div class="opt-btn diff-hard"   id="diffHard"   onclick="selectDiff('hard')">Hard</div>
+        </div>
+      </div>
+      <div class="setup-section">
+        <label>Play as</label>
+        <div class="option-group">
+          <div class="opt-btn active" id="colorWhite" onclick="selectColor('white')">White (First)</div>
+          <div class="opt-btn"        id="colorBlack" onclick="selectColor('black')">Black (Second)</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn primary large" onclick="startGame()">START GAME</button>
+  </div>
+</div>
+
+<!-- ── HEADER ─────────────────────────────────────────── -->
 <header>
   <div class="logo">Meta<span>morph</span> Chess</div>
+  <div class="header-center" id="headerCenter"></div>
   <div class="header-actions">
+    <button class="btn" onclick="showSetup()">SETUP</button>
     <button class="btn primary" onclick="newGame()">NEW GAME</button>
   </div>
 </header>
 
+<!-- ── GAME WRAPPER ───────────────────────────────────── -->
 <div class="game-wrapper">
 
   <!-- LEFT: Swap Station -->
   <div class="swap-panel">
-    <div class="panel-card">
+    <div class="panel-card" style="padding:12px 14px;">
       <div class="panel-label">Round</div>
       <div class="round-display" id="roundDisplay">1</div>
     </div>
 
-    <div class="panel-card">
+    <div class="panel-card" style="padding:12px 14px;">
       <div class="panel-label">Current Swap</div>
       <div class="swap-display" id="currentSwapDisplay">
-        <span class="swap-piece-white" id="swapLeft">♗</span>
+        <span class="swap-sym" id="swapLeft">♗</span>
         <span class="swap-arrow">↔</span>
-        <span class="swap-piece-white" id="swapRight">♖</span>
+        <span class="swap-sym" id="swapRight">♖</span>
       </div>
-      <div style="margin-top:8px; font-family:var(--font-mono); font-size:0.65rem; color:var(--text-dim); text-align:center;">
+      <div style="margin-top:7px;font-family:var(--font-mono);font-size:0.60rem;color:var(--text-dim);text-align:center;">
         executes after black moves
       </div>
     </div>
 
-    <div class="panel-card">
+    <div class="panel-card" style="padding:12px 14px;">
       <div class="panel-label">Next Swap</div>
-      <div class="next-swap-display" id="nextSwapDisplay">
+      <div class="next-swap-display">
         <span id="nextSwapLeft">♘</span>
         <span class="swap-arrow">↔</span>
         <span id="nextSwapRight">♗</span>
       </div>
     </div>
 
-    <div class="panel-card">
+    <div class="panel-card" style="padding:10px 12px;">
       <div class="panel-label">Turn</div>
       <div class="turn-indicator">
         <div class="turn-dot white" id="turnDot"></div>
         <div class="turn-text" id="turnText">WHITE</div>
+        <div class="thinking-dot" id="thinkingDot"></div>
       </div>
     </div>
 
@@ -617,7 +634,7 @@ header {
     </div>
   </div>
 
-  <!-- RIGHT: Log -->
+  <!-- RIGHT: Log + Graveyard -->
   <div class="log-panel">
     <div class="panel-card" style="padding:10px 12px;">
       <div class="panel-label">Battle Log</div>
@@ -625,15 +642,15 @@ header {
     </div>
     <div class="graveyard panel-card">
       <div class="panel-label">Captured</div>
-      <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-dim);margin-bottom:4px;">WHITE took</div>
+      <div class="graveyard-section-label">WHITE TOOK</div>
       <div class="graveyard-row" id="whiteCaptured"></div>
-      <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-dim);margin-bottom:4px;">BLACK took</div>
+      <div class="graveyard-section-label">BLACK TOOK</div>
       <div class="graveyard-row" id="blackCaptured"></div>
     </div>
   </div>
 </div>
 
-<!-- Promotion Modal -->
+<!-- ── PROMOTION MODAL ────────────────────────────────── -->
 <div class="modal-overlay" id="promoModal">
   <div class="modal">
     <h2>PROMOTE PAWN</h2>
@@ -641,522 +658,615 @@ header {
   </div>
 </div>
 
-<!-- Game Over Overlay -->
+<!-- ── GAME OVER ──────────────────────────────────────── -->
 <div class="gameover-overlay" id="gameoverOverlay">
-  <div class="gameover-title" id="gameoverTitle">CHECKMATE</div>
-  <div class="gameover-sub" id="gameoverSub">WHITE WINS</div>
-  <button class="btn primary" onclick="newGame()">PLAY AGAIN</button>
+  <div class="gameover-card">
+    <div class="gameover-title" id="gameoverTitle">CHECKMATE</div>
+    <div class="gameover-sub"   id="gameoverSub">WHITE WINS</div>
+    <button class="btn primary" style="margin-top:8px;" onclick="newGame()">PLAY AGAIN</button>
+    <button class="btn" onclick="showSetup()">CHANGE SETUP</button>
+  </div>
 </div>
 
-<!-- Swap Banner -->
+<!-- ── SWAP BANNER ────────────────────────────────────── -->
 <div class="swap-banner" id="swapBanner">
-  <div class="swap-banner-label">SWAP EXECUTED</div>
+  <div class="swap-banner-label">METAMORPH SWAP</div>
   <div class="swap-banner-content" id="swapBannerContent"></div>
 </div>
 
 <script>
-// ============================================================
+// ================================================================
 // CONSTANTS
-// ============================================================
+// ================================================================
 const FILES = ['a','b','c','d','e','f','g','h'];
-const PIECE_SYMBOLS = {
+const PIECE_SYM = {
   white: { king:'♔', queen:'♕', rook:'♖', bishop:'♗', knight:'♘', pawn:'♙' },
   black: { king:'♚', queen:'♛', rook:'♜', bishop:'♝', knight:'♞', pawn:'♟' }
 };
 const SWAP_TYPES = [
-  { a: 'knight', b: 'bishop', display: ['♘','♗'] },
-  { a: 'bishop', b: 'rook',   display: ['♗','♖'] },
-  { a: 'rook',   b: 'knight', display: ['♖','♘'] }
+  { a:'knight', b:'bishop', display:['♘','♗'], label:'N↔B' },
+  { a:'bishop', b:'rook',   display:['♗','♖'], label:'B↔R' },
+  { a:'rook',   b:'knight', display:['♖','♘'], label:'R↔N' }
 ];
 
-// ============================================================
+// ================================================================
+// AI: PIECE VALUES + PIECE-SQUARE TABLES
+// ================================================================
+const PIECE_VAL = { pawn:100, knight:310, bishop:320, rook:500, queen:900, king:20000 };
+
+// Tables from white's perspective (row 0 = rank 8 = opponent back rank for white)
+const PST = {
+  pawn:[
+    [  0,  0,  0,  0,  0,  0,  0,  0],
+    [ 50, 50, 50, 50, 50, 50, 50, 50],
+    [ 10, 10, 20, 30, 30, 20, 10, 10],
+    [  5,  5, 10, 27, 27, 10,  5,  5],
+    [  0,  0,  0, 22, 22,  0,  0,  0],
+    [  5, -5,-10,  0,  0,-10, -5,  5],
+    [  5, 10, 10,-22,-22, 10, 10,  5],
+    [  0,  0,  0,  0,  0,  0,  0,  0]
+  ],
+  knight:[
+    [-50,-40,-30,-30,-30,-30,-40,-50],
+    [-40,-20,  0,  0,  0,  0,-20,-40],
+    [-30,  0, 10, 15, 15, 10,  0,-30],
+    [-30,  5, 15, 20, 20, 15,  5,-30],
+    [-30,  0, 15, 20, 20, 15,  0,-30],
+    [-30,  5, 10, 15, 15, 10,  5,-30],
+    [-40,-20,  0,  5,  5,  0,-20,-40],
+    [-50,-40,-30,-30,-30,-30,-40,-50]
+  ],
+  bishop:[
+    [-20,-10,-10,-10,-10,-10,-10,-20],
+    [-10,  0,  0,  0,  0,  0,  0,-10],
+    [-10,  0,  7, 10, 10,  7,  0,-10],
+    [-10,  5,  7, 10, 10,  7,  5,-10],
+    [-10,  0, 10, 10, 10, 10,  0,-10],
+    [-10, 10, 10, 10, 10, 10, 10,-10],
+    [-10,  5,  0,  0,  0,  0,  5,-10],
+    [-20,-10,-10,-10,-10,-10,-10,-20]
+  ],
+  rook:[
+    [  0,  0,  0,  0,  0,  0,  0,  0],
+    [  5, 10, 10, 10, 10, 10, 10,  5],
+    [ -5,  0,  0,  0,  0,  0,  0, -5],
+    [ -5,  0,  0,  0,  0,  0,  0, -5],
+    [ -5,  0,  0,  0,  0,  0,  0, -5],
+    [ -5,  0,  0,  0,  0,  0,  0, -5],
+    [ -5,  0,  0,  0,  0,  0,  0, -5],
+    [  0,  0,  0,  5,  5,  0,  0,  0]
+  ],
+  queen:[
+    [-20,-10,-10, -5, -5,-10,-10,-20],
+    [-10,  0,  0,  0,  0,  0,  0,-10],
+    [-10,  0,  5,  5,  5,  5,  0,-10],
+    [ -5,  0,  5,  5,  5,  5,  0, -5],
+    [  0,  0,  5,  5,  5,  5,  0, -5],
+    [-10,  5,  5,  5,  5,  5,  0,-10],
+    [-10,  0,  5,  0,  0,  0,  0,-10],
+    [-20,-10,-10, -5, -5,-10,-10,-20]
+  ],
+  king:[
+    [-30,-40,-40,-50,-50,-40,-40,-30],
+    [-30,-40,-40,-50,-50,-40,-40,-30],
+    [-30,-40,-40,-50,-50,-40,-40,-30],
+    [-30,-40,-40,-50,-50,-40,-40,-30],
+    [-20,-30,-30,-40,-40,-30,-30,-20],
+    [-10,-20,-20,-20,-20,-20,-20,-10],
+    [ 20, 20,  0,  0,  0,  0, 20, 20],
+    [ 20, 30, 10,  0,  0, 10, 30, 20]
+  ]
+};
+
+function pstBonus(type, color, r, f) {
+  const table = PST[type];
+  if (!table) return 0;
+  const row = color === 'white' ? r : 7 - r;
+  return table[row][f];
+}
+
+function evaluateBoard(board, forColor) {
+  let score = 0;
+  for (let r = 0; r < 8; r++) {
+    for (let f = 0; f < 8; f++) {
+      const p = board[r][f];
+      if (!p) continue;
+      const val = (PIECE_VAL[p.type] || 0) + pstBonus(p.type, p.color, r, f);
+      score += p.color === forColor ? val : -val;
+    }
+  }
+  return score;
+}
+
+function getAllMoves(board, color, ep) {
+  const moves = [];
+  for (let r = 0; r < 8; r++)
+    for (let f = 0; f < 8; f++) {
+      const p = board[r][f];
+      if (p && p.color === color) {
+        getPieceMoves(board, r, f, ep, true).forEach(([tr, tf]) => moves.push({ fr:r, ff:f, tr, tf }));
+      }
+    }
+  return moves;
+}
+
+function minimax(board, depth, alpha, beta, isMax, aiColor, ep) {
+  const color = isMax ? aiColor : opp(aiColor);
+  if (depth === 0) return evaluateBoard(board, aiColor);
+
+  const moves = getAllMoves(board, color, ep);
+  if (moves.length === 0) return isKingInCheck(board, color) ? (isMax ? -85000 : 85000) : 0;
+
+  // Move ordering: captures first
+  moves.sort((a, b) => (board[b.tr][b.tf] ? 1 : 0) - (board[a.tr][a.tf] ? 1 : 0));
+
+  let best = isMax ? -Infinity : Infinity;
+  for (const mv of moves) {
+    const nb = cloneBoard(board);
+    const p = nb[mv.fr][mv.ff];
+    const newEp = (p && p.type === 'pawn' && Math.abs(mv.tr - mv.fr) === 2) ? [(mv.fr+mv.tr)/2, mv.ff] : null;
+    applyMoveToBoard(nb, mv.fr, mv.ff, mv.tr, mv.tf, ep);
+    // AI always promotes to queen
+    const mp = nb[mv.tr][mv.tf];
+    if (mp && mp.type === 'pawn' && (mv.tr === 0 || mv.tr === 7)) mp.type = 'queen';
+
+    const score = minimax(nb, depth - 1, alpha, beta, !isMax, aiColor, newEp);
+    if (isMax) { if (score > best) best = score; alpha = Math.max(alpha, score); }
+    else        { if (score < best) best = score; beta  = Math.min(beta,  score); }
+    if (beta <= alpha) break;
+  }
+  return best;
+}
+
+function getBestMove(board, aiColor, ep, difficulty) {
+  const moves = getAllMoves(board, aiColor, ep);
+  if (!moves.length) return null;
+
+  // Shuffle for variety
+  for (let i = moves.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [moves[i], moves[j]] = [moves[j], moves[i]];
+  }
+
+  if (difficulty === 'easy') return moves[Math.floor(Math.random() * moves.length)];
+
+  const depth = difficulty === 'hard' ? 3 : 2;
+  let bestMove = moves[0], bestScore = -Infinity;
+
+  for (const mv of moves) {
+    const nb = cloneBoard(board);
+    const p = nb[mv.fr][mv.ff];
+    const newEp = (p && p.type === 'pawn' && Math.abs(mv.tr - mv.fr) === 2) ? [(mv.fr+mv.tr)/2, mv.ff] : null;
+    applyMoveToBoard(nb, mv.fr, mv.ff, mv.tr, mv.tf, ep);
+    const mp = nb[mv.tr][mv.tf];
+    if (mp && mp.type === 'pawn' && (mv.tr === 0 || mv.tr === 7)) mp.type = 'queen';
+
+    const score = minimax(nb, depth - 1, -Infinity, Infinity, false, aiColor, newEp);
+    if (score > bestScore) { bestScore = score; bestMove = mv; }
+  }
+  return bestMove;
+}
+
+// ================================================================
+// SETUP STATE
+// ================================================================
+const CFG = { mode:'pvp', difficulty:'medium', playerColor:'white' };
+
+function selectMode(m) {
+  CFG.mode = m;
+  document.getElementById('modePvp').classList.toggle('active', m === 'pvp');
+  document.getElementById('modePvc').classList.toggle('active', m === 'pvc');
+  document.getElementById('pvcOptions').classList.toggle('visible', m === 'pvc');
+}
+function selectDiff(d) {
+  CFG.difficulty = d;
+  ['easy','medium','hard'].forEach(x => document.getElementById('diff'+x[0].toUpperCase()+x.slice(1)).classList.toggle('active', x === d));
+}
+function selectColor(c) {
+  CFG.playerColor = c;
+  document.getElementById('colorWhite').classList.toggle('active', c === 'white');
+  document.getElementById('colorBlack').classList.toggle('active', c === 'black');
+}
+function showSetup() { document.getElementById('setupOverlay').classList.add('active'); }
+function startGame() {
+  document.getElementById('setupOverlay').classList.remove('active');
+  newGame();
+}
+
+// ================================================================
 // GAME STATE
-// ============================================================
+// ================================================================
 let G = {};
 
 function newGame() {
   document.getElementById('gameoverOverlay').classList.remove('active');
+  const aiColor = CFG.mode === 'pvc' ? opp(CFG.playerColor) : null;
+
   G = {
     board: initBoard(),
     currentTurn: 'white',
-    roundNumber: 1,
-    swapQueue: generateSwapQueue(40),
+    mode: CFG.mode,
+    difficulty: CFG.difficulty,
+    playerColor: CFG.playerColor,
+    aiColor,
+    boardFlipped: CFG.mode === 'pvc' && CFG.playerColor === 'black',
+    aiThinking: false,
+    swapQueue: genSwapQueue(40),
     currentSwap: null,
     nextSwap: null,
-    moveHistory: [],     // [{white, black}] per round
-    logEntries: [],      // flat log for display
+    logEntries: [],
     gameStatus: 'active',
-    capturedPieces: { white: [], black: [] },
+    capturedPieces: { white:[], black:[] },
     enPassantTarget: null,
     halfMoveClock: 0,
     selected: null,
     validMoves: [],
     pendingPromotion: null,
     whiteMoveThisRound: null,
-    roundMoveCount: 0,   // 0=white to move, 1=black to move
+    lastMove: null,
   };
   G.currentSwap = G.swapQueue.shift();
-  G.nextSwap = G.swapQueue.shift();
+  G.nextSwap    = G.swapQueue.shift();
+
   renderAll();
+  updateHeaderBadge();
+
+  // AI goes first if player chose black
+  if (G.mode === 'pvc' && G.aiColor === 'white' && G.gameStatus === 'active') {
+    scheduleAI();
+  }
 }
 
-// ============================================================
+function opp(c) { return c === 'white' ? 'black' : 'white'; }
+
+// ================================================================
 // BOARD INIT
-// ============================================================
+// ================================================================
 function initBoard() {
   const b = Array(8).fill(null).map(() => Array(8).fill(null));
-  const backRank = ['rook','knight','bishop','queen','king','bishop','knight','rook'];
+  const back = ['rook','knight','bishop','queen','king','bishop','knight','rook'];
   for (let f = 0; f < 8; f++) {
-    b[0][f] = piece('black', backRank[f]);
-    b[1][f] = piece('black', 'pawn');
-    b[6][f] = piece('white', 'pawn');
-    b[7][f] = piece('white', backRank[f]);
+    b[0][f] = mkPiece('black', back[f]);
+    b[1][f] = mkPiece('black', 'pawn');
+    b[6][f] = mkPiece('white', 'pawn');
+    b[7][f] = mkPiece('white', back[f]);
   }
   return b;
 }
 
-function piece(color, type) {
-  return { type, color, originalType: type, hasMoved: false };
-}
+function mkPiece(color, type) { return { type, color, originalType: type, hasMoved: false }; }
 
-// ============================================================
+// ================================================================
 // SWAP QUEUE
-// ============================================================
-function generateSwapQueue(n) {
+// ================================================================
+function genSwapQueue(n) {
   const q = [];
-  while (q.length < n) {
-    const shuffled = fisherYates([0,1,2]);
-    shuffled.forEach(i => q.push(i));
-  }
+  while (q.length < n) fisherYates([0,1,2]).forEach(i => q.push(i));
   return q.slice(0, n);
 }
-
-function fisherYates(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+function fisherYates(a) {
+  a = [...a];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
   }
   return a;
 }
+function swapType(idx) { return SWAP_TYPES[idx]; }
 
-function getSwapType(idx) { return SWAP_TYPES[idx]; }
-
-// ============================================================
+// ================================================================
 // MOVE GENERATION
-// ============================================================
-function getPieceMoves(board, r, f, enPassantTarget, checkFilter = true) {
+// ================================================================
+function getPieceMoves(board, r, f, ep, filterCheck = true) {
   const p = board[r][f];
   if (!p) return [];
   const moves = [];
-
   switch (p.type) {
-    case 'pawn':   addPawnMoves(board, r, f, p, enPassantTarget, moves); break;
-    case 'knight': addKnightMoves(board, r, f, p, moves); break;
-    case 'bishop': addSlideMoves(board, r, f, p, [[1,1],[1,-1],[-1,1],[-1,-1]], moves); break;
-    case 'rook':   addSlideMoves(board, r, f, p, [[1,0],[-1,0],[0,1],[0,-1]], moves); break;
-    case 'queen':  addSlideMoves(board, r, f, p, [[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]], moves); break;
-    case 'king':   addKingMoves(board, r, f, p, moves); break;
+    case 'pawn':   addPawnMoves(board, r, f, p, ep, moves);              break;
+    case 'knight': addKnightMoves(board, r, f, p, moves);                break;
+    case 'bishop': addSlide(board,r,f,p,[[1,1],[1,-1],[-1,1],[-1,-1]],moves); break;
+    case 'rook':   addSlide(board,r,f,p,[[1,0],[-1,0],[0,1],[0,-1]],moves);   break;
+    case 'queen':  addSlide(board,r,f,p,[[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]],moves); break;
+    case 'king':   addKingMoves(board,r,f,p,moves);                      break;
   }
-
-  if (!checkFilter) return moves;
-  return moves.filter(([tr, tf]) => !moveLeavesKingInCheck(board, r, f, tr, tf, p.color, enPassantTarget));
+  if (!filterCheck) return moves;
+  return moves.filter(([tr,tf]) => !leavesInCheck(board,r,f,tr,tf,p.color,ep));
 }
 
-function addPawnMoves(board, r, f, p, enPassantTarget, moves) {
+function addPawnMoves(board, r, f, p, ep, moves) {
   const dir = p.color === 'white' ? -1 : 1;
-  const startRow = p.color === 'white' ? 6 : 1;
-
-  // Forward
-  if (inBounds(r+dir, f) && !board[r+dir][f]) {
-    moves.push([r+dir, f]);
-    if (r === startRow && !board[r+2*dir][f]) moves.push([r+2*dir, f]);
+  const start = p.color === 'white' ? 6 : 1;
+  if (inB(r+dir,f) && !board[r+dir][f]) {
+    moves.push([r+dir,f]);
+    if (r===start && !board[r+2*dir][f]) moves.push([r+2*dir,f]);
   }
-  // Captures
-  for (const df of [-1, 1]) {
-    if (inBounds(r+dir, f+df)) {
-      const target = board[r+dir][f+df];
-      if (target && target.color !== p.color) moves.push([r+dir, f+df]);
-      // En passant
-      if (enPassantTarget && enPassantTarget[0] === r+dir && enPassantTarget[1] === f+df) {
-        moves.push([r+dir, f+df]);
-      }
+  for (const df of [-1,1]) {
+    if (inB(r+dir,f+df)) {
+      const t = board[r+dir][f+df];
+      if (t && t.color !== p.color) moves.push([r+dir,f+df]);
+      if (ep && ep[0]===r+dir && ep[1]===f+df) moves.push([r+dir,f+df]);
     }
   }
 }
-
-function addKnightMoves(board, r, f, p, moves) {
-  const jumps = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
-  for (const [dr, df] of jumps) {
-    const nr = r+dr, nf = f+df;
-    if (inBounds(nr, nf)) {
-      const t = board[nr][nf];
-      if (!t || t.color !== p.color) moves.push([nr, nf]);
-    }
+function addKnightMoves(board,r,f,p,moves) {
+  [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr,df])=>{
+    if(inB(r+dr,f+df)){const t=board[r+dr][f+df];if(!t||t.color!==p.color)moves.push([r+dr,f+df]);}
+  });
+}
+function addSlide(board,r,f,p,dirs,moves) {
+  for(const[dr,df]of dirs){
+    let nr=r+dr,nf=f+df;
+    while(inB(nr,nf)){const t=board[nr][nf];if(!t){moves.push([nr,nf]);}else{if(t.color!==p.color)moves.push([nr,nf]);break;}nr+=dr;nf+=df;}
   }
 }
-
-function addSlideMoves(board, r, f, p, dirs, moves) {
-  for (const [dr, df] of dirs) {
-    let nr = r+dr, nf = f+df;
-    while (inBounds(nr, nf)) {
-      const t = board[nr][nf];
-      if (!t) { moves.push([nr, nf]); }
-      else {
-        if (t.color !== p.color) moves.push([nr, nf]);
-        break;
-      }
-      nr += dr; nf += df;
-    }
+function addKingMoves(board,r,f,p,moves) {
+  for(let dr=-1;dr<=1;dr++)for(let df=-1;df<=1;df++){
+    if(!dr&&!df)continue;
+    if(inB(r+dr,f+df)){const t=board[r+dr][f+df];if(!t||t.color!==p.color)moves.push([r+dr,f+df]);}
   }
 }
+function inB(r,f){return r>=0&&r<8&&f>=0&&f<8;}
 
-function addKingMoves(board, r, f, p, moves) {
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let df = -1; df <= 1; df++) {
-      if (dr === 0 && df === 0) continue;
-      const nr = r+dr, nf = f+df;
-      if (inBounds(nr, nf)) {
-        const t = board[nr][nf];
-        if (!t || t.color !== p.color) moves.push([nr, nf]);
-      }
-    }
+function leavesInCheck(board,fr,ff,tr,tf,color,ep) {
+  const nb=cloneBoard(board);
+  applyMoveToBoard(nb,fr,ff,tr,tf,ep);
+  return isKingInCheck(nb,color);
+}
+
+function applyMoveToBoard(board,fr,ff,tr,tf,ep) {
+  const p=board[fr][ff];
+  if(p&&p.type==='pawn'&&ep&&tr===ep[0]&&tf===ep[1]) {
+    board[p.color==='white'?tr+1:tr-1][tf]=null;
   }
+  board[tr][tf]=p;
+  board[fr][ff]=null;
+  if(p)p.hasMoved=true;
 }
 
-function inBounds(r, f) { return r >= 0 && r < 8 && f >= 0 && f < 8; }
-
-function moveLeavesKingInCheck(board, fr, ff, tr, tf, color, enPassantTarget) {
-  const nb = cloneBoard(board);
-  applyMoveToBoard(nb, fr, ff, tr, tf, enPassantTarget);
-  return isKingInCheck(nb, color);
-}
-
-function applyMoveToBoard(board, fr, ff, tr, tf, enPassantTarget) {
-  const p = board[fr][ff];
-  // En passant capture
-  if (p && p.type === 'pawn' && enPassantTarget && tr === enPassantTarget[0] && tf === enPassantTarget[1]) {
-    const captureRow = p.color === 'white' ? tr + 1 : tr - 1;
-    board[captureRow][tf] = null;
-  }
-  board[tr][tf] = p;
-  board[fr][ff] = null;
-  if (p) p.hasMoved = true;
-}
-
-function isKingInCheck(board, color) {
-  const kingPos = findKing(board, color);
-  if (!kingPos) return false;
-  const [kr, kf] = kingPos;
-  const opp = color === 'white' ? 'black' : 'white';
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const p = board[r][f];
-      if (p && p.color === opp) {
-        const moves = getPieceMoves(board, r, f, null, false);
-        if (moves.some(([mr, mf]) => mr === kr && mf === kf)) return true;
-      }
-    }
+function isKingInCheck(board,color) {
+  const kp=findKing(board,color);
+  if(!kp)return false;
+  const[kr,kf]=kp;
+  for(let r=0;r<8;r++)for(let f=0;f<8;f++){
+    const p=board[r][f];
+    if(p&&p.color!==color&&getPieceMoves(board,r,f,null,false).some(([mr,mf])=>mr===kr&&mf===kf))return true;
   }
   return false;
 }
 
-function findKing(board, color) {
-  for (let r = 0; r < 8; r++)
-    for (let f = 0; f < 8; f++)
-      if (board[r][f] && board[r][f].type === 'king' && board[r][f].color === color)
-        return [r, f];
+function findKing(board,color) {
+  for(let r=0;r<8;r++)for(let f=0;f<8;f++)
+    if(board[r][f]&&board[r][f].type==='king'&&board[r][f].color===color)return[r,f];
   return null;
 }
 
-function hasLegalMoves(board, color, enPassantTarget) {
-  for (let r = 0; r < 8; r++)
-    for (let f = 0; f < 8; f++) {
-      const p = board[r][f];
-      if (p && p.color === color) {
-        if (getPieceMoves(board, r, f, enPassantTarget, true).length > 0) return true;
-      }
-    }
+function hasLegalMoves(board,color,ep) {
+  for(let r=0;r<8;r++)for(let f=0;f<8;f++){
+    const p=board[r][f];
+    if(p&&p.color===color&&getPieceMoves(board,r,f,ep,true).length>0)return true;
+  }
   return false;
 }
 
-function cloneBoard(board) {
-  return board.map(row => row.map(p => p ? {...p} : null));
-}
+function cloneBoard(b){ return b.map(row=>row.map(p=>p?{...p}:null)); }
 
-// ============================================================
-// ALGEBRAIC NOTATION
-// ============================================================
-function toAlgebraic(board, fr, ff, tr, tf, piece, captured, isEnPassant, promotion) {
-  const fileNames = ['a','b','c','d','e','f','g','h'];
-  let s = '';
-  if (piece.type === 'pawn') {
-    if (captured || isEnPassant) s += fileNames[ff];
-    s += fileNames[tf] + (8 - tr);
-    if (isEnPassant) s += ' e.p.';
-    if (promotion) s += '=' + promotion[0].toUpperCase();
-  } else {
-    const sym = { knight:'N', bishop:'B', rook:'R', queen:'Q', king:'K' }[piece.type] || '?';
-    s += sym;
-    if (captured) s += 'x';
-    s += fileNames[tf] + (8 - tr);
+// ================================================================
+// NOTATION
+// ================================================================
+function toAlg(fr,ff,tr,tf,p,captured,isEP) {
+  const fn = f => FILES[f];
+  if(p.type==='pawn') {
+    let s = (captured||isEP) ? fn(ff) : '';
+    s += fn(tf)+(8-tr);
+    if(isEP) s += ' e.p.';
+    return s;
   }
-  return s;
+  const syms = {knight:'N',bishop:'B',rook:'R',queen:'Q',king:'K'};
+  return (syms[p.type]||'?') + (captured?'x':'') + fn(tf)+(8-tr);
 }
 
-// ============================================================
+// ================================================================
 // CLICK HANDLING
-// ============================================================
-function handleSquareClick(r, f) {
-  if (G.gameStatus !== 'active') return;
-  if (G.pendingPromotion) return;
+// ================================================================
+function handleSquareClick(logR, logF) {
+  if(G.gameStatus==='checkmate'||G.gameStatus==='stalemate')return;
+  if(G.pendingPromotion)return;
+  if(G.mode==='pvc'&&G.currentTurn===G.aiColor)return;
+  if(G.aiThinking)return;
 
-  const p = G.board[r][f];
+  const p=G.board[logR][logF];
 
-  // If a piece is selected, try to move
-  if (G.selected) {
-    const [sr, sf] = G.selected;
-    const isValid = G.validMoves.some(([mr, mf]) => mr === r && mf === f);
-
-    if (isValid) {
-      executeMove(sr, sf, r, f);
+  if(G.selected){
+    const[sr,sf]=G.selected;
+    if(G.validMoves.some(([mr,mf])=>mr===logR&&mf===logF)){
+      executeMove(sr,sf,logR,logF);
       return;
     }
-    // Reselect own piece
-    if (p && p.color === G.currentTurn) {
-      selectPiece(r, f);
-      return;
-    }
-    // Deselect
-    G.selected = null;
-    G.validMoves = [];
-    renderBoard();
-    return;
+    if(p&&p.color===G.currentTurn){selectPiece(logR,logF);return;}
+    G.selected=null; G.validMoves=[]; renderBoard(); return;
   }
-
-  // Select piece
-  if (p && p.color === G.currentTurn) {
-    selectPiece(r, f);
-  }
+  if(p&&p.color===G.currentTurn) selectPiece(logR,logF);
 }
 
-function selectPiece(r, f) {
-  G.selected = [r, f];
-  G.validMoves = getPieceMoves(G.board, r, f, G.enPassantTarget, true);
+function selectPiece(r,f){
+  G.selected=[r,f];
+  G.validMoves=getPieceMoves(G.board,r,f,G.enPassantTarget,true);
   renderBoard();
 }
 
-// ============================================================
+// ================================================================
 // MOVE EXECUTION
-// ============================================================
-function executeMove(fr, ff, tr, tf) {
-  const p = G.board[fr][ff];
-  const captured = G.board[tr][tf];
-  const isEnPassant = p.type === 'pawn' && G.enPassantTarget &&
-    tr === G.enPassantTarget[0] && tf === G.enPassantTarget[1] && !captured;
+// ================================================================
+function executeMove(fr,ff,tr,tf){
+  const p=G.board[fr][ff];
+  const captured=G.board[tr][tf];
+  const isEP = p.type==='pawn'&&G.enPassantTarget&&tr===G.enPassantTarget[0]&&tf===G.enPassantTarget[1]&&!captured;
+  const notation=toAlg(fr,ff,tr,tf,p,captured,isEP);
 
-  // Build notation before move
-  const notation = toAlgebraic(G.board, fr, ff, tr, tf, p, captured, isEnPassant, null);
+  const nb=cloneBoard(G.board);
+  applyMoveToBoard(nb,fr,ff,tr,tf,G.enPassantTarget);
 
-  // Apply move
-  const nb = cloneBoard(G.board);
-  applyMoveToBoard(nb, fr, ff, tr, tf, G.enPassantTarget);
-
-  // Handle captures
-  if (captured) {
-    G.capturedPieces[G.currentTurn].push(captured);
-  }
-  if (isEnPassant) {
-    const captureRow = p.color === 'white' ? tr + 1 : tr - 1;
-    const epPawn = G.board[captureRow][tf];
-    if (epPawn) G.capturedPieces[G.currentTurn].push(epPawn);
+  if(captured) G.capturedPieces[G.currentTurn].push({...captured});
+  if(isEP){
+    const cr=p.color==='white'?tr+1:tr-1;
+    const ep=G.board[cr][tf];
+    if(ep) G.capturedPieces[G.currentTurn].push({...ep});
   }
 
-  // Update en passant target
-  if (p.type === 'pawn' && Math.abs(tr - fr) === 2) {
-    G.enPassantTarget = [(fr + tr) / 2, ff];
-  } else {
-    G.enPassantTarget = null;
-  }
+  G.enPassantTarget = (p.type==='pawn'&&Math.abs(tr-fr)===2) ? [(fr+tr)/2,ff] : null;
+  G.board=nb;
+  G.board[tr][tf].hasMoved=true;
+  G.selected=null; G.validMoves=[];
+  G.lastMove=[fr,ff,tr,tf];
 
-  G.board = nb;
-  G.board[tr][tf].hasMoved = true;
-  G.selected = null;
-  G.validMoves = [];
+  if(p.type==='pawn'||captured) G.halfMoveClock=0; else G.halfMoveClock++;
 
-  // Half move clock
-  if (p.type === 'pawn' || captured) G.halfMoveClock = 0;
-  else G.halfMoveClock++;
-
-  // Pawn promotion check
-  if (p.type === 'pawn' && (tr === 0 || tr === 7)) {
-    G.pendingPromotion = { r: tr, f: tf, color: p.color, notation };
+  if(p.type==='pawn'&&(tr===0||tr===7)){
+    G.pendingPromotion={r:tr,f:tf,color:p.color,notation};
+    // AI auto-promotes
+    if(G.mode==='pvc'&&p.color===G.aiColor){completePromotion('queen');return;}
     showPromoModal(p.color);
     return;
   }
-
   finalizeMove(notation);
 }
 
-function finalizeMove(notation) {
-  const color = G.currentTurn;
-
-  if (color === 'white') {
-    G.whiteMoveThisRound = notation;
-    G.currentTurn = 'black';
-    G.roundMoveCount = 1;
+function finalizeMove(notation){
+  const color=G.currentTurn;
+  if(color==='white'){
+    G.whiteMoveThisRound=notation;
+    G.currentTurn='black';
   } else {
-    // Black just moved — log the round, then execute swap
-    const roundEntry = { num: G.roundNumber, white: G.whiteMoveThisRound, black: notation };
-    G.logEntries.push({ type: 'moves', ...roundEntry });
-
-    G.currentTurn = 'white';
-    G.roundMoveCount = 0;
-
-    // Execute swap
+    G.logEntries.push({type:'moves', num: Math.ceil(G.logEntries.filter(e=>e.type==='moves').length+1), white:G.whiteMoveThisRound, black:notation});
+    G.whiteMoveThisRound=null;
+    G.currentTurn='white';
     executeSwap();
     return;
   }
-
-  // Check game status for current turn
-  checkGameStatus();
+  checkStatus();
   renderAll();
+  if(G.mode==='pvc'&&G.currentTurn===G.aiColor&&G.gameStatus==='active') scheduleAI();
+  if(G.mode==='pvc'&&G.currentTurn===G.aiColor&&G.gameStatus==='check')  scheduleAI();
 }
 
-// ============================================================
-// SWAP EXECUTION
-// ============================================================
-function executeSwap() {
-  const swap = G.currentSwap;
-  const swapType = getSwapType(swap);
-  const { a, b } = swapType;
+// ================================================================
+// AI
+// ================================================================
+function scheduleAI(){
+  if(G.aiThinking)return;
+  G.aiThinking=true;
+  renderTurn(); // show thinking dot
+  setTimeout(()=>{
+    const mv=getBestMove(G.board,G.aiColor,G.enPassantTarget,G.difficulty);
+    G.aiThinking=false;
+    if(mv&&(G.gameStatus==='active'||G.gameStatus==='check')) executeMove(mv.fr,mv.ff,mv.tr,mv.tf);
+  }, G.difficulty==='hard'?80:50);
+}
 
-  const affected = [];
+// ================================================================
+// SWAP
+// ================================================================
+function executeSwap(){
+  const st=swapType(G.currentSwap);
+  const{a,b}=st;
+  const affected=[];
 
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const p = G.board[r][f];
-      if (!p) continue;
-      if (p.type === a) {
-        p.type = b;
-        affected.push([r, f]);
-      } else if (p.type === b) {
-        p.type = a;
-        affected.push([r, f]);
-      }
-    }
+  for(let r=0;r<8;r++)for(let f=0;f<8;f++){
+    const p=G.board[r][f];
+    if(!p)continue;
+    if(p.type===a){p.type=b;affected.push([r,f]);}
+    else if(p.type===b){p.type=a;affected.push([r,f]);}
   }
 
-  // Log swap
-  G.logEntries.push({ type: 'swap', display: swapType.display });
+  G.logEntries.push({type:'swap',display:st.display});
+  G.currentSwap=G.nextSwap;
+  let ni=G.swapQueue.shift();
+  if(G.swapQueue.length<5)G.swapQueue.push(...genSwapQueue(20));
+  G.nextSwap=ni!==undefined?ni:genSwapQueue(1)[0];
 
-  // Advance swap queue
-  G.currentSwap = G.nextSwap;
-  // Pick next valid swap
-  let nextIdx = G.swapQueue.shift();
-  if (G.swapQueue.length < 5) {
-    G.swapQueue.push(...generateSwapQueue(20));
-  }
-  G.nextSwap = nextIdx !== undefined ? nextIdx : generateSwapQueue(1)[0];
-
-  G.roundNumber++;
-
-  // Check game status after swap
-  checkGameStatus();
-
-  // Visual flash then render
+  checkStatus();
   renderAll();
 
-  if (affected.length > 0) {
-    showSwapBanner(swapType.display);
-    setTimeout(() => {
-      flashTransformedPieces(affected);
-    }, 50);
+  if(affected.length){
+    showSwapBanner(st.display);
+    setTimeout(()=>flashPieces(affected),60);
+  }
+
+  if((G.gameStatus==='active'||G.gameStatus==='check')&&G.mode==='pvc'&&G.currentTurn===G.aiColor){
+    scheduleAI();
   }
 }
 
-function showSwapBanner(display) {
-  const banner = document.getElementById('swapBanner');
-  const content = document.getElementById('swapBannerContent');
-  content.textContent = display[0] + ' ↔ ' + display[1];
-  banner.classList.add('show');
-  setTimeout(() => banner.classList.remove('show'), 1500);
+function showSwapBanner(display){
+  const b=document.getElementById('swapBanner');
+  const c=document.getElementById('swapBannerContent');
+  c.innerHTML=`<span>${display[0]}</span><span class="swap-banner-arrow">↔</span><span>${display[1]}</span>`;
+  b.classList.add('show');
+  setTimeout(()=>b.classList.remove('show'),1600);
 }
-
-function flashTransformedPieces(positions) {
-  positions.forEach(([r, f]) => {
-    const sq = document.querySelector(`[data-r="${r}"][data-f="${f}"]`);
-    if (sq) {
-      const pieceEl = sq.querySelector('.piece');
-      if (pieceEl) {
-        pieceEl.classList.remove('transformed');
-        void pieceEl.offsetWidth;
-        pieceEl.classList.add('transformed');
-      }
-    }
+function flashPieces(positions){
+  positions.forEach(([r,f])=>{
+    const sq=document.querySelector(`[data-r="${r}"][data-f="${f}"]`);
+    if(sq){const pe=sq.querySelector('.piece');if(pe){pe.classList.remove('transformed');void pe.offsetWidth;pe.classList.add('transformed');}}
   });
 }
 
-// ============================================================
+// ================================================================
 // PROMOTION
-// ============================================================
-function showPromoModal(color) {
-  const opts = document.getElementById('promoOptions');
-  opts.innerHTML = '';
-  const types = ['queen','rook','bishop','knight'];
-  types.forEach(t => {
-    const btn = document.createElement('div');
-    btn.className = 'promo-btn';
-    btn.textContent = PIECE_SYMBOLS[color][t];
-    btn.onclick = () => completePromotion(t);
+// ================================================================
+function showPromoModal(color){
+  const opts=document.getElementById('promoOptions');
+  opts.innerHTML='';
+  ['queen','rook','bishop','knight'].forEach(t=>{
+    const btn=document.createElement('div');
+    btn.className='promo-btn';
+    btn.textContent=PIECE_SYM[color][t];
+    if(color==='white') btn.style.cssText='-webkit-text-stroke:1.2px #4a3010;';
+    else btn.style.cssText='color:#1c0e00;-webkit-text-stroke:0;';
+    btn.onclick=()=>completePromotion(t);
     opts.appendChild(btn);
   });
   document.getElementById('promoModal').classList.add('active');
 }
-
-function completePromotion(type) {
+function completePromotion(type){
   document.getElementById('promoModal').classList.remove('active');
-  const { r, f, color, notation } = G.pendingPromotion;
-  G.board[r][f].type = type;
-  G.pendingPromotion = null;
-  const fullNotation = notation + '=' + type[0].toUpperCase();
-  finalizeMove(fullNotation);
+  const{r,f,notation}=G.pendingPromotion;
+  G.board[r][f].type=type;
+  G.pendingPromotion=null;
+  finalizeMove(notation+'='+type[0].toUpperCase());
 }
 
-// ============================================================
-// CHECK / CHECKMATE / STALEMATE
-// ============================================================
-function checkGameStatus() {
-  const color = G.currentTurn;
-  const inCheck = isKingInCheck(G.board, color);
-  const hasMovesLeft = hasLegalMoves(G.board, color, G.enPassantTarget);
-
-  if (!hasMovesLeft) {
-    G.gameStatus = inCheck ? 'checkmate' : 'stalemate';
-    const loser = color;
-    const winner = loser === 'white' ? 'black' : 'white';
-    setTimeout(() => {
-      const overlay = document.getElementById('gameoverOverlay');
-      document.getElementById('gameoverTitle').textContent = inCheck ? 'CHECKMATE' : 'STALEMATE';
-      document.getElementById('gameoverSub').textContent = inCheck ? winner.toUpperCase() + ' WINS' : 'DRAW';
-      overlay.classList.add('active');
-    }, 600);
-  } else if (G.halfMoveClock >= 100) {
-    G.gameStatus = 'stalemate';
-    setTimeout(() => {
-      document.getElementById('gameoverTitle').textContent = 'DRAW';
-      document.getElementById('gameoverSub').textContent = '50-MOVE RULE';
+// ================================================================
+// GAME STATUS
+// ================================================================
+function checkStatus(){
+  const color=G.currentTurn;
+  const inCheck=isKingInCheck(G.board,color);
+  const hasM=hasLegalMoves(G.board,color,G.enPassantTarget);
+  if(!hasM){
+    G.gameStatus=inCheck?'checkmate':'stalemate';
+    const winner=opp(color);
+    setTimeout(()=>{
+      document.getElementById('gameoverTitle').textContent=inCheck?'CHECKMATE':'STALEMATE';
+      document.getElementById('gameoverSub').textContent=inCheck?winner.toUpperCase()+' WINS':'DRAW';
       document.getElementById('gameoverOverlay').classList.add('active');
-    }, 300);
+    },700);
+  } else if(G.halfMoveClock>=100){
+    G.gameStatus='stalemate';
+    setTimeout(()=>{
+      document.getElementById('gameoverTitle').textContent='DRAW';
+      document.getElementById('gameoverSub').textContent='50-MOVE RULE';
+      document.getElementById('gameoverOverlay').classList.add('active');
+    },400);
   } else {
-    G.gameStatus = inCheck ? 'check' : 'active';
+    G.gameStatus=inCheck?'check':'active';
   }
 }
 
-// ============================================================
+// ================================================================
 // RENDERING
-// ============================================================
-function renderAll() {
+// ================================================================
+function renderAll(){
   renderBoard();
   renderSwapPanel();
   renderLog();
@@ -1165,173 +1275,179 @@ function renderAll() {
   renderTurn();
 }
 
-function renderBoard() {
-  const boardEl = document.getElementById('board');
-  boardEl.innerHTML = '';
+function visToLog(vr, vf) {
+  // Convert visual row/col to logical row/col based on board flip
+  return G.boardFlipped ? [7-vr, 7-vf] : [vr, vf];
+}
 
-  const kingInCheckPos = G.gameStatus === 'check' || G.gameStatus === 'checkmate'
-    ? findKing(G.board, G.currentTurn) : null;
+function renderBoard(){
+  const boardEl=document.getElementById('board');
+  boardEl.innerHTML='';
+  const rankLabels=document.getElementById('rankLabels');
+  const fileLabels=document.getElementById('fileLabels');
+  rankLabels.innerHTML=''; fileLabels.innerHTML='';
 
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const sq = document.createElement('div');
-      sq.className = 'square ' + ((r + f) % 2 === 0 ? 'light' : 'dark');
-      sq.dataset.r = r;
-      sq.dataset.f = f;
+  const checkPos=(G.gameStatus==='check'||G.gameStatus==='checkmate')?findKing(G.board,G.currentTurn):null;
 
-      // Highlight states
-      if (G.selected && G.selected[0] === r && G.selected[1] === f) {
-        sq.classList.add('selected');
+  for(let vr=0;vr<8;vr++){
+    // Rank label
+    const rl=document.createElement('div');
+    rl.textContent = G.boardFlipped ? (vr+1) : (8-vr);
+    rankLabels.appendChild(rl);
+
+    for(let vf=0;vf<8;vf++){
+      const[r,f]=visToLog(vr,vf);
+      const sq=document.createElement('div');
+      sq.className='square '+((vr+vf)%2===0?'light':'dark');
+      sq.dataset.r=r; sq.dataset.f=f;
+
+      // Highlights
+      if(G.selected&&G.selected[0]===r&&G.selected[1]===f) sq.classList.add('selected');
+      if(G.validMoves.some(([mr,mf])=>mr===r&&mf===f)){
+        sq.classList.add(G.board[r][f]?'valid-capture':'valid-move');
       }
-      if (G.validMoves.some(([mr, mf]) => mr === r && mf === f)) {
-        if (G.board[r][f]) sq.classList.add('valid-capture');
-        else sq.classList.add('valid-move');
-      }
-      if (kingInCheckPos && kingInCheckPos[0] === r && kingInCheckPos[1] === f) {
-        sq.classList.add('in-check');
+      if(checkPos&&checkPos[0]===r&&checkPos[1]===f) sq.classList.add('in-check');
+      if(G.lastMove){
+        const[lfr,lff,ltr,ltf]=G.lastMove;
+        if(r===lfr&&f===lff) sq.classList.add('last-move-from');
+        if(r===ltr&&f===ltf) sq.classList.add('last-move-to');
       }
 
-      const p = G.board[r][f];
-      if (p) {
-        const pieceEl = document.createElement('div');
-        pieceEl.className = 'piece ' + (p.color === 'white' ? 'white-piece' : 'black-piece');
-        pieceEl.textContent = PIECE_SYMBOLS[p.color][p.type];
+      const p=G.board[r][f];
+      if(p){
+        const pe=document.createElement('div');
+        pe.className='piece '+(p.color==='white'?'white-piece':'black-piece');
+        pe.textContent=PIECE_SYM[p.color][p.type];
 
-        // Type badge if transformed
-        if (p.type !== p.originalType) {
-          const badge = document.createElement('div');
-          badge.className = 'type-badge ' + p.type;
-          badge.textContent = { knight:'N', bishop:'B', rook:'R', queen:'Q' }[p.type] || '';
+        // Type badge if transformed from original
+        if(p.type!==p.originalType){
+          const badge=document.createElement('div');
+          badge.className='type-badge '+p.type;
+          badge.textContent={knight:'N',bishop:'B',rook:'R',queen:'Q'}[p.type]||'';
           sq.appendChild(badge);
         }
-
-        sq.appendChild(pieceEl);
+        sq.appendChild(pe);
       }
-
-      sq.addEventListener('click', () => handleSquareClick(r, f));
+      sq.addEventListener('click',()=>handleSquareClick(r,f));
       boardEl.appendChild(sq);
     }
   }
 
-  // Rank/file labels
-  const rankLabels = document.getElementById('rankLabels');
-  rankLabels.innerHTML = '';
-  for (let r = 0; r < 8; r++) {
-    const d = document.createElement('div');
-    d.textContent = 8 - r;
-    d.style.height = '72px';
-    d.style.display = 'flex';
-    d.style.alignItems = 'center';
-    rankLabels.appendChild(d);
-  }
-
-  const fileLabels = document.getElementById('fileLabels');
-  fileLabels.innerHTML = '';
-  for (let f = 0; f < 8; f++) {
-    const d = document.createElement('div');
-    d.textContent = FILES[f];
-    d.style.width = '72px';
-    d.style.textAlign = 'center';
-    fileLabels.appendChild(d);
+  // File labels
+  for(let vf=0;vf<8;vf++){
+    const fl=document.createElement('div');
+    fl.textContent = G.boardFlipped ? FILES[7-vf] : FILES[vf];
+    fileLabels.appendChild(fl);
   }
 }
 
-function renderSwapPanel() {
-  const swapType = getSwapType(G.currentSwap);
-  const nextType = getSwapType(G.nextSwap);
-
-  document.getElementById('swapLeft').textContent = swapType.display[0];
-  document.getElementById('swapRight').textContent = swapType.display[1];
-  document.getElementById('nextSwapLeft').textContent = nextType.display[0];
-  document.getElementById('nextSwapRight').textContent = nextType.display[1];
-  document.getElementById('roundDisplay').textContent = G.roundNumber;
-
-  const disp = document.getElementById('currentSwapDisplay');
-  // Pulse when black is about to move (swap is imminent)
-  if (G.currentTurn === 'black') disp.classList.add('imminent');
-  else disp.classList.remove('imminent');
+function renderSwapPanel(){
+  const st=swapType(G.currentSwap), nt=swapType(G.nextSwap);
+  document.getElementById('swapLeft').textContent=st.display[0];
+  document.getElementById('swapRight').textContent=st.display[1];
+  document.getElementById('nextSwapLeft').textContent=nt.display[0];
+  document.getElementById('nextSwapRight').textContent=nt.display[1];
+  document.getElementById('roundDisplay').textContent=
+    G.logEntries.filter(e=>e.type==='moves').length+1;
+  const disp=document.getElementById('currentSwapDisplay');
+  disp.classList.toggle('imminent',G.currentTurn==='black');
 }
 
-function renderTurn() {
-  const dot = document.getElementById('turnDot');
-  const text = document.getElementById('turnText');
-  dot.className = 'turn-dot ' + G.currentTurn;
-  text.textContent = G.currentTurn.toUpperCase();
-}
-
-function renderStatus() {
-  const sb = document.getElementById('statusBar');
-  sb.className = 'status-bar';
-  if (G.gameStatus === 'check') {
-    sb.classList.add('check');
-    sb.textContent = G.currentTurn.toUpperCase() + ' IN CHECK';
-  } else if (G.gameStatus === 'checkmate') {
-    sb.classList.add('checkmate');
-    sb.textContent = 'CHECKMATE';
-  } else if (G.gameStatus === 'stalemate') {
-    sb.classList.add('stalemate');
-    sb.textContent = 'STALEMATE';
+function renderTurn(){
+  const dot=document.getElementById('turnDot');
+  const txt=document.getElementById('turnText');
+  const think=document.getElementById('thinkingDot');
+  dot.className='turn-dot '+G.currentTurn;
+  txt.textContent=G.currentTurn.toUpperCase();
+  if(G.mode==='pvc'&&G.aiThinking){
+    txt.textContent='THINKING';
+    think.classList.add('visible');
   } else {
-    sb.textContent = 'IN PLAY';
+    think.classList.remove('visible');
   }
 }
 
-function renderLog() {
-  const scroll = document.getElementById('logScroll');
-  scroll.innerHTML = '';
+function renderStatus(){
+  const sb=document.getElementById('statusBar');
+  sb.className='status-bar';
+  if(G.gameStatus==='check'){sb.classList.add('check');sb.textContent=G.currentTurn.toUpperCase()+' IN CHECK';}
+  else if(G.gameStatus==='checkmate'){sb.classList.add('checkmate');sb.textContent='CHECKMATE';}
+  else if(G.gameStatus==='stalemate'){sb.classList.add('stalemate');sb.textContent='STALEMATE';}
+  else sb.textContent='IN PLAY';
+}
 
-  let moveNum = 1;
-  G.logEntries.forEach(entry => {
-    if (entry.type === 'moves') {
-      const div = document.createElement('div');
-      div.className = 'log-entry';
-      div.innerHTML = `<span class="move-num">${entry.num}.</span><span class="move-white">${entry.white || ''}</span><span class="move-black">${entry.black || ''}</span>`;
-      scroll.appendChild(div);
-      moveNum++;
-    } else if (entry.type === 'swap') {
-      const div = document.createElement('div');
-      div.className = 'log-swap';
-      div.textContent = '— ' + entry.display[0] + ' ↔ ' + entry.display[1] + ' —';
-      scroll.appendChild(div);
+function renderLog(){
+  const scroll=document.getElementById('logScroll');
+  scroll.innerHTML='';
+  let mnum=1;
+  G.logEntries.forEach(e=>{
+    if(e.type==='moves'){
+      const d=document.createElement('div');
+      d.className='log-entry';
+      d.innerHTML=`<span class="move-num">${mnum++}.</span><span class="move-white">${e.white||''}</span><span class="move-black">${e.black||''}</span>`;
+      scroll.appendChild(d);
+    } else if(e.type==='swap'){
+      const d=document.createElement('div');
+      d.className='log-swap';
+      d.textContent='— '+e.display[0]+' ↔ '+e.display[1]+' —';
+      scroll.appendChild(d);
     }
   });
-
-  // Partial round (white moved, black hasn't)
-  if (G.whiteMoveThisRound && G.currentTurn === 'black') {
-    const div = document.createElement('div');
-    div.className = 'log-entry';
-    div.innerHTML = `<span class="move-num">${G.roundNumber}.</span><span class="move-white">${G.whiteMoveThisRound}</span><span class="move-black" style="color:var(--text-dim)">…</span>`;
-    scroll.appendChild(div);
+  if(G.whiteMoveThisRound&&G.currentTurn==='black'){
+    const d=document.createElement('div');
+    d.className='log-entry';
+    d.innerHTML=`<span class="move-num">${mnum}.</span><span class="move-white">${G.whiteMoveThisRound}</span><span class="move-black" style="color:var(--text-dim)">…</span>`;
+    scroll.appendChild(d);
   }
-
-  scroll.scrollTop = scroll.scrollHeight;
+  scroll.scrollTop=scroll.scrollHeight;
 }
 
-function renderGraveyard() {
-  const wc = document.getElementById('whiteCaptured');
-  const bc = document.getElementById('blackCaptured');
-  wc.innerHTML = '';
-  bc.innerHTML = '';
-
-  G.capturedPieces.white.forEach(p => {
-    const span = document.createElement('span');
-    span.className = 'graveyard-piece black-capture';
-    span.textContent = PIECE_SYMBOLS[p.color][p.originalType || p.type];
-    wc.appendChild(span);
+function renderGraveyard(){
+  const wc=document.getElementById('whiteCaptured');
+  const bc=document.getElementById('blackCaptured');
+  wc.innerHTML=''; bc.innerHTML='';
+  G.capturedPieces.white.forEach(p=>{
+    const s=document.createElement('span');
+    s.className='graveyard-piece '+(p.color==='white'?'wpiece':'bpiece');
+    s.textContent=PIECE_SYM[p.color][p.originalType||p.type];
+    wc.appendChild(s);
   });
-
-  G.capturedPieces.black.forEach(p => {
-    const span = document.createElement('span');
-    span.className = 'graveyard-piece white-capture';
-    span.textContent = PIECE_SYMBOLS[p.color][p.originalType || p.type];
-    bc.appendChild(span);
+  G.capturedPieces.black.forEach(p=>{
+    const s=document.createElement('span');
+    s.className='graveyard-piece '+(p.color==='white'?'wpiece':'bpiece');
+    s.textContent=PIECE_SYM[p.color][p.originalType||p.type];
+    bc.appendChild(s);
   });
 }
 
-// ============================================================
+function updateHeaderBadge(){
+  const hc=document.getElementById('headerCenter');
+  if(G.mode==='pvp'){
+    hc.innerHTML='<span class="mode-badge">PLAYER VS PLAYER</span>';
+  } else {
+    const dLabel={easy:'EASY',medium:'MEDIUM',hard:'HARD'}[G.difficulty];
+    const pLabel=G.playerColor==='white'?'YOU: WHITE':'YOU: BLACK';
+    hc.innerHTML=`<span class="mode-badge">VS COMPUTER</span><span class="diff-badge ${G.difficulty}">${dLabel}</span><span style="color:var(--text-dim);font-size:0.65rem;">${pLabel}</span>`;
+  }
+}
+
+// ================================================================
 // START
-// ============================================================
-newGame();
+// ================================================================
+// Initialize with default state so board renders behind setup modal
+G = {
+  board: initBoard(),
+  currentTurn:'white', mode:'pvp', difficulty:'medium',
+  playerColor:'white', aiColor:null, boardFlipped:false, aiThinking:false,
+  swapQueue:genSwapQueue(40), currentSwap:null, nextSwap:null,
+  logEntries:[], gameStatus:'active', capturedPieces:{white:[],black:[]},
+  enPassantTarget:null, halfMoveClock:0, selected:null, validMoves:[],
+  pendingPromotion:null, whiteMoveThisRound:null, lastMove:null
+};
+G.currentSwap=G.swapQueue.shift();
+G.nextSwap=G.swapQueue.shift();
+renderAll();
+updateHeaderBadge();
 </script>
 </body>
 </html>
