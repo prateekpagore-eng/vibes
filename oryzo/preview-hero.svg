@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" font-family="'Hanken Grotesk','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <radialGradient id="corkTop" cx="42%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#caa06a"/>
+      <stop offset="55%" stop-color="#a9784a"/>
+      <stop offset="100%" stop-color="#6e4a28"/>
+    </radialGradient>
+    <linearGradient id="corkSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7c5530"/>
+      <stop offset="100%" stop-color="#3f2a16"/>
+    </linearGradient>
+    <radialGradient id="well" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#8a623a"/>
+      <stop offset="100%" stop-color="#b88c57"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#dc5000" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#dc5000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="speck"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" result="n"/><feColorMatrix in="n" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer><feComposite operator="in" in2="SourceGraphic"/></filter>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1440" height="900" fill="#100904"/>
+  <ellipse cx="980" cy="470" rx="430" ry="430" fill="url(#glow)"/>
+
+  <!-- NAV -->
+  <g fill="#ffedd7">
+    <text x="80" y="58" font-size="22" font-weight="700">◐  ORYZO <tspan font-size="11" fill="#dc5000" dy="-8">AI</tspan></text>
+    <g font-size="11" letter-spacing="1.5" fill="#ffedd7" opacity="0.85" font-family="'JetBrains Mono',monospace">
+      <text x="560" y="54">MODEL</text>
+      <text x="650" y="54">SPECS</text>
+      <text x="740" y="54">WOODENBENCH</text>
+      <text x="880" y="54">RESEARCH</text>
+    </g>
+    <rect x="1230" y="34" width="130" height="38" rx="19" fill="none" stroke="#ffedd7" stroke-opacity="0.35"/>
+    <text x="1262" y="58" font-size="11" letter-spacing="2" font-family="'JetBrains Mono',monospace">GET WEIGHTS</text>
+  </g>
+
+  <!-- topline dashed -->
+  <line x1="80" y1="150" x2="1360" y2="150" stroke="#ffedd7" stroke-opacity="0.18" stroke-dasharray="5 5"/>
+  <g font-family="'JetBrains Mono',monospace" font-size="12" letter-spacing="2" fill="#ffedd7" opacity="0.55">
+    <text x="80" y="140">OPEN-WEIGHT · COASTER FAMILY</text>
+    <text x="1130" y="140">EST. 2026 · v1.0.0</text>
+  </g>
+
+  <!-- COASTER render -->
+  <g transform="translate(980,470)">
+    <!-- side -->
+    <ellipse cx="0" cy="34" rx="300" ry="118" fill="url(#corkSide)"/>
+    <rect x="-300" y="-6" width="600" height="40" fill="url(#corkSide)"/>
+    <ellipse cx="0" cy="-6" rx="300" ry="118" fill="url(#corkTop)"/>
+    <ellipse cx="0" cy="-6" rx="300" ry="118" fill="#000" opacity="0.0"/>
+    <!-- speckle on top -->
+    <ellipse cx="0" cy="-6" rx="300" ry="118" fill="#e8c89a" filter="url(#speck)" opacity="0.5"/>
+    <!-- recessed well -->
+    <ellipse cx="0" cy="-2" rx="232" ry="90" fill="url(#well)"/>
+    <ellipse cx="0" cy="-2" rx="232" ry="90" fill="#caa06a" filter="url(#speck)" opacity="0.4"/>
+    <!-- rim light -->
+    <path d="M -298 -22 A 300 118 0 0 1 250 -78" fill="none" stroke="#ffedd7" stroke-opacity="0.5" stroke-width="2"/>
+    <path d="M 60 86 A 300 118 0 0 0 300 -2" fill="none" stroke="#dc5000" stroke-opacity="0.7" stroke-width="3"/>
+  </g>
+
+  <!-- HERO TITLE -->
+  <g font-weight="700" letter-spacing="-6">
+    <text x="68" y="540" font-size="300" fill="#ffedd7">ORYZO</text>
+    <text x="74" y="760" font-size="300" fill="#dc5000">—1</text>
+  </g>
+
+  <!-- bottom dashed + copy -->
+  <line x1="80" y1="800" x2="1360" y2="800" stroke="#ffedd7" stroke-opacity="0.18" stroke-dasharray="5 5"/>
+  <text x="760" y="840" font-size="17" fill="#ffedd7" opacity="0.6">An open-weight 3D model of a cork coaster for rendering,</text>
+  <text x="760" y="864" font-size="17" fill="#ffedd7" opacity="0.6">simulation, and gloriously unnecessary research.</text>
+
+  <!-- actions -->
+  <rect x="1120" y="822" width="160" height="42" rx="21" fill="#ffedd7"/>
+  <text x="1148" y="848" font-size="11" letter-spacing="2" fill="#100904" font-family="'JetBrains Mono',monospace">DOWNLOAD OBJ</text>
+
+  <!-- badges -->
+  <g font-family="'JetBrains Mono',monospace" font-size="11" letter-spacing="2" fill="#ffedd7" opacity="0.55">
+    <text x="80" y="878">SCROLL TO INSPECT  ————</text>
+    <circle cx="1245" cy="884" r="4" fill="#dc5000"/>
+    <text x="1075" y="888">RENDERING LIVE · WEBGL</text>
+  </g>
+</svg>
