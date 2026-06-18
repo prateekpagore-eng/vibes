@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ORYZO-1 — an open-weight 3D model of a cork coaster for rendering, simulation, and gloriously unnecessary research." />
+  <title>ORYZO AI — ORYZO-1</title>
+
+  <!-- halyard-display (Adobe) if available on the client, with graceful Google fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- ░░░ CUSTOM CURSOR ░░░ -->
+  <div class="cursor" data-cursor>
+    <div class="cursor__dot"></div>
+    <div class="cursor__ring"></div>
+    <span class="cursor__label" data-cursor-label>drag</span>
+  </div>
+
+  <!-- ░░░ PRELOADER ░░░ -->
+  <div class="preloader" data-preloader>
+    <div class="preloader__inner">
+      <div class="preloader__brand">ORYZO<span>®</span></div>
+      <div class="preloader__bar"><span data-preloader-bar></span></div>
+      <div class="preloader__meta">
+        <span>LOADING MODEL WEIGHTS</span>
+        <span data-preloader-count>00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░░ GRAIN OVERLAY ░░░ -->
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ░░░ WEBGL CANVAS ░░░ -->
+  <canvas class="webgl" data-webgl></canvas>
+
+  <!-- ░░░ NAV ░░░ -->
+  <header class="nav" data-nav>
+    <a href="#top" class="nav__brand" data-magnetic>
+      <span class="nav__mark">◐</span>
+      <span>ORYZO</span>
+      <sup>AI</sup>
+    </a>
+    <nav class="nav__links">
+      <a href="#model" data-link>Model</a>
+      <a href="#specs" data-link>Specs</a>
+      <a href="#bench" data-link>WoodenBench</a>
+      <a href="#research" data-link>Research</a>
+    </nav>
+    <a href="#download" class="btn btn--ghost nav__cta" data-magnetic data-link>
+      <span>Get Weights</span>
+    </a>
+    <button class="nav__burger" data-burger aria-label="Menu">
+      <span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ░░░ MOBILE MENU ░░░ -->
+  <div class="menu" data-menu>
+    <a href="#model" data-link>Model</a>
+    <a href="#specs" data-link>Specs</a>
+    <a href="#bench" data-link>WoodenBench</a>
+    <a href="#research" data-link>Research</a>
+    <a href="#download" data-link>Get Weights</a>
+  </div>
+
+  <main id="top" class="main">
+
+    <!-- ░░░ HERO ░░░ -->
+    <section class="hero" id="model">
+      <div class="hero__topline">
+        <span data-split>OPEN-WEIGHT · COASTER FAMILY</span>
+        <span data-split>EST. 2026 · v1.0.0</span>
+      </div>
+
+      <h1 class="hero__title" data-hero-title>
+        <span class="line"><span data-split>ORYZO</span></span>
+        <span class="line line--accent"><span data-split>—1</span></span>
+      </h1>
+
+      <div class="hero__copy" data-reveal>
+        <p>
+          An open-weight 3D model of a cork coaster for rendering, simulation,
+          and gloriously unnecessary research. Trained on a single object.
+          Aligned to a single purpose.
+        </p>
+        <div class="hero__actions">
+          <a href="#download" class="btn btn--solid" data-magnetic data-link><span>Download OBJ</span></a>
+          <a href="#bench" class="btn btn--text" data-link><span>Read the benchmarks</span><i>↗</i></a>
+        </div>
+      </div>
+
+      <div class="hero__scroll" data-reveal>
+        <span>SCROLL TO INSPECT</span>
+        <div class="hero__scrollline"><i></i></div>
+      </div>
+
+      <div class="hero__badge" data-reveal>
+        <span class="dot"></span> RENDERING LIVE · WEBGL
+      </div>
+    </section>
+
+    <!-- ░░░ MANIFESTO ░░░ -->
+    <section class="manifesto" data-section>
+      <p class="manifesto__eyebrow" data-reveal>01 / THESIS</p>
+      <h2 class="manifesto__text" data-words>
+        Every frontier model promises to reshape the world. ORYZO-1 promises
+        to keep your table dry. It does exactly one thing, and it does it with
+        absolute conviction.
+      </h2>
+      <div class="manifesto__foot" data-reveal>
+        <span>A self-initiated study in craft, restraint, and the absurd.</span>
+        <span>↘</span>
+      </div>
+    </section>
+
+    <!-- ░░░ MARQUEE ░░░ -->
+    <div class="marquee" data-marquee aria-hidden="true">
+      <div class="marquee__track">
+        <span>PASSIVE TABLE PROTECTION</span><span class="sep">◐</span>
+        <span>PERFECT CIRCULARITY</span><span class="sep">◐</span>
+        <span>THERMAL MODERATION</span><span class="sep">◐</span>
+        <span>LOCAL DEPLOYMENT</span><span class="sep">◐</span>
+        <span>PASSIVE TABLE PROTECTION</span><span class="sep">◐</span>
+        <span>PERFECT CIRCULARITY</span><span class="sep">◐</span>
+        <span>THERMAL MODERATION</span><span class="sep">◐</span>
+        <span>LOCAL DEPLOYMENT</span><span class="sep">◐</span>
+      </div>
+    </div>
+
+    <!-- ░░░ SPECS ░░░ -->
+    <section class="specs" id="specs" data-section>
+      <div class="specs__head">
+        <p class="eyebrow" data-reveal>02 / CAPABILITIES</p>
+        <h2 class="h2" data-words>Three behaviours. Faithfully reproduced.</h2>
+      </div>
+
+      <div class="specs__grid">
+        <article class="spec" data-reveal>
+          <span class="spec__no">001</span>
+          <h3>Table Protection</h3>
+          <p>A dense cork substrate absorbs condensation and arrests heat transfer before it reaches the surface beneath. Zero-shot. No fine-tuning required.</p>
+        </article>
+        <article class="spec" data-reveal>
+          <span class="spec__no">002</span>
+          <h3>Perfect Circularity</h3>
+          <p>94mm of uncompromising rotational symmetry. Every approach vector is the correct approach vector. Rotationally invariant by design.</p>
+        </article>
+        <article class="spec" data-reveal>
+          <span class="spec__no">003</span>
+          <h3>Thermal Moderation</h3>
+          <p>Passive, parameter-free temperature handling across the everyday beverage distribution — from iced to scalding — with no observable drift.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ░░░ STAT STRIP ░░░ -->
+    <section class="stats" data-section>
+      <div class="stat" data-counter data-to="94"><b><span>0</span>mm</b><small>Diameter</small></div>
+      <div class="stat" data-counter data-to="8"><b><span>0</span>mm</b><small>Profile height</small></div>
+      <div class="stat" data-counter data-to="100"><b><span>0</span>%</b><small>Cork-native</small></div>
+      <div class="stat" data-counter data-to="1"><b><span>0</span></b><small>Parameters that matter</small></div>
+    </section>
+
+    <!-- ░░░ WOODENBENCH ░░░ -->
+    <section class="bench" id="bench" data-section>
+      <div class="bench__head">
+        <p class="eyebrow" data-reveal>03 / WOODENBENCH</p>
+        <h2 class="h2" data-words>State of the art on every metric we invented.</h2>
+        <p class="bench__lede" data-reveal>
+          ORYZO-1 was evaluated against a standardized suite of household
+          surface-protection tasks. Higher is better. Results are baseline and,
+          frankly, unbeatable.
+        </p>
+      </div>
+
+      <div class="bench__table" data-reveal>
+        <div class="bench__row bench__row--head">
+          <span>Task</span><span>Baseline</span><span>ORYZO-1</span><span class="bar-col">Score</span>
+        </div>
+        <div class="bench__row" data-bench>
+          <span>Ring Suppression</span><span>61.2</span><span>99.4</span>
+          <span class="bar-col"><i style="--w:99%"></i></span>
+        </div>
+        <div class="bench__row" data-bench>
+          <span>Condensation Capture</span><span>54.8</span><span>98.1</span>
+          <span class="bar-col"><i style="--w:98%"></i></span>
+        </div>
+        <div class="bench__row" data-bench>
+          <span>Thermal Isolation</span><span>70.5</span><span>96.7</span>
+          <span class="bar-col"><i style="--w:96%"></i></span>
+        </div>
+        <div class="bench__row" data-bench>
+          <span>Structural Stability</span><span>88.0</span><span>99.9</span>
+          <span class="bar-col"><i style="--w:99%"></i></span>
+        </div>
+        <div class="bench__row" data-bench>
+          <span>Aesthetic Coherence</span><span>42.3</span><span>97.2</span>
+          <span class="bar-col"><i style="--w:97%"></i></span>
+        </div>
+      </div>
+      <p class="bench__note" data-reveal>* WoodenBench is an internal, non-peer-reviewed, lovingly biased evaluation suite.</p>
+    </section>
+
+    <!-- ░░░ RESEARCH / OPEN WEIGHTS ░░░ -->
+    <section class="research" id="research" data-section>
+      <div class="research__grid">
+        <div class="research__copy">
+          <p class="eyebrow" data-reveal>04 / OPEN RESEARCH</p>
+          <h2 class="h2" data-words>Released openly. Because the world deserves coasters.</h2>
+          <p data-reveal>
+            We are releasing ORYZO-1 in a clean, dependency-free OBJ format under
+            a permissive license. Run it locally. Render it. Simulate it. Drop a
+            virtual mug on it and watch nothing spill.
+          </p>
+          <ul class="research__list" data-reveal>
+            <li><span>↳</span> Single-mesh OBJ + MTL, no rigging required</li>
+            <li><span>↳</span> Reproducible WoodenBench harness included</li>
+            <li><span>↳</span> Quantized variant for low-poly edge devices</li>
+            <li><span>↳</span> Model card with honest, unhelpful limitations</li>
+          </ul>
+        </div>
+        <div class="research__card" data-reveal>
+          <div class="card__terminal">
+            <div class="card__bar"><i></i><i></i><i></i></div>
+            <pre><code><span class="c">$</span> git clone oryzo/ORYZO-1
+<span class="g">→ resolving weights…</span>
+<span class="g">→ verifying geometry…  [<span class="ok">ok</span>]</span>
+<span class="c">$</span> oryzo render --obj oryzo-1.obj
+<span class="g">→ loading 1 object</span>
+<span class="g">→ surface: cork (native)</span>
+<span class="g">→ spill probability: <span class="ok">0.00</span></span>
+<span class="c">$</span> _</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ░░░ DOWNLOAD / CTA ░░░ -->
+    <section class="cta" id="download" data-section>
+      <div class="cta__inner" data-reveal>
+        <p class="eyebrow">05 / DEPLOY</p>
+        <h2 class="cta__title" data-words>Put a coaster under your workflow.</h2>
+        <div class="cta__actions">
+          <a href="#" class="btn btn--solid btn--lg" data-magnetic><span>Download ORYZO-1 ↓</span></a>
+          <a href="#" class="btn btn--ghost btn--lg" data-magnetic><span>View on GitHub</span></a>
+        </div>
+        <p class="cta__fine">OBJ · MTL · 48KB · MIT-ish</p>
+      </div>
+    </section>
+
+    <!-- ░░░ FOOTER ░░░ -->
+    <footer class="footer" data-section>
+      <div class="footer__top">
+        <div class="footer__brand">
+          <span class="footer__mark">◐</span>
+          <span>ORYZO<sup>AI</sup></span>
+        </div>
+        <p class="footer__statement">
+          A deliberately ridiculous study in how far craft, storytelling, and
+          live 3D can carry a single, humble object.
+        </p>
+      </div>
+
+      <div class="footer__cols">
+        <div class="footer__col">
+          <h4>Model</h4>
+          <a href="#download">Download</a>
+          <a href="#specs">Spec sheet</a>
+          <a href="#bench">WoodenBench</a>
+        </div>
+        <div class="footer__col">
+          <h4>Project</h4>
+          <a href="#research">Research</a>
+          <a href="#">Model card</a>
+          <a href="#">Changelog</a>
+        </div>
+        <div class="footer__col">
+          <h4>Elsewhere</h4>
+          <a href="#">GitHub ↗</a>
+          <a href="#">Product Hunt ↗</a>
+          <a href="#">Founder video ↗</a>
+        </div>
+      </div>
+
+      <div class="footer__bottom">
+        <span>© 2026 ORYZO AI — A satirical, self-initiated project.</span>
+        <span>Rendered live with Three.js + WebGL.</span>
+        <a href="#top" class="footer__back" data-magnetic data-link>BACK TO TOP ↑</a>
+      </div>
+    </footer>
+
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
