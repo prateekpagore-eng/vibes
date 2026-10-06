@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 
 /* ============================================================
    ORYZO AI — interactions + live WebGL cork coaster
@@ -201,7 +202,11 @@ function marquee() {
    7. THREE.JS — procedural cork coaster
 ------------------------------------------------------------ */
 const canvas = document.querySelector("[data-webgl]");
+const MODEL_URL = "assets/oryzo-1.obj";
+const TARGET_RADIUS = 1.7; // on-screen size, independent of the model's own scale
+
 let renderer, scene, camera, coaster, raf;
+let baseScale = 1;
 const drag = { active: false, px: 0, py: 0 };
 const rot = { x: -0.35, y: 0, vx: 0, vy: 0.004, tx: -0.35, ty: 0 };
 const scroll = { progress: 0 };
@@ -228,6 +233,51 @@ function corkTexture() {
   return tex;
 }
 
+function corkMaterial() {
+  const map = corkTexture();
+  return new THREE.MeshStandardMaterial({
+    map,
+    bumpMap: map,
+    bumpScale: 0.02,
+    roughness: 0.92,
+    metalness: 0.0,
+    color: 0xb98a55,
+  });
+}
+
+/* Fit any mesh to a consistent on-screen size, then stage it in the scene. */
+function setCoaster(mesh) {
+  mesh.geometry.center();
+  mesh.geometry.computeBoundingSphere();
+  const r = mesh.geometry.boundingSphere?.radius || 1;
+  baseScale = TARGET_RADIUS / r;
+  mesh.scale.setScalar(baseScale);
+
+  if (coaster) scene.remove(coaster);
+  coaster = mesh;
+  scene.add(coaster);
+}
+
+/* Preferred path: the released OBJ. Falls back to procedural geometry if the
+   file is missing or the fetch fails, so the scene is never empty. */
+function loadModel() {
+  setCoaster(buildCoaster()); // show something immediately
+  new OBJLoader().load(
+    MODEL_URL,
+    (group) => {
+      let mesh = null;
+      group.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+      if (!mesh) return;
+      mesh.material = corkMaterial();
+      if (!mesh.geometry.attributes.normal) mesh.geometry.computeVertexNormals();
+      setCoaster(mesh);
+    },
+    undefined,
+    (err) => console.warn("OBJ load failed, using procedural mesh:", err)
+  );
+}
+
+/* Procedural fallback: same profile as the released OBJ, revolved in-engine. */
 function buildCoaster() {
   // lathe profile (x = radius, y = height) — coaster with raised rim + recessed well
   const pts = [
@@ -241,23 +291,9 @@ function buildCoaster() {
     new THREE.Vector2(0.8, 0.16),
     new THREE.Vector2(0.0, 0.16),
   ];
-  const geo = new THREE.LatheGeometry(pts, 128);
-  geo.center();
+  const geo = new THREE.LatheGeometry(pts, 96);
   geo.computeVertexNormals();
-
-  const map = corkTexture();
-  const mat = new THREE.MeshStandardMaterial({
-    map,
-    bumpMap: map,
-    bumpScale: 0.02,
-    roughness: 0.92,
-    metalness: 0.0,
-    color: 0xb98a55,
-  });
-
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.scale.set(1.7, 1.7, 1.7);
-  return mesh;
+  return new THREE.Mesh(geo, corkMaterial());
 }
 
 function initThree() {
@@ -270,8 +306,7 @@ function initThree() {
   camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
   camera.position.set(0, 0, 7);
 
-  coaster = buildCoaster();
-  scene.add(coaster);
+  loadModel();
 
   // cinematic lighting
   scene.add(new THREE.AmbientLight(0xffedd7, 0.35));
@@ -346,7 +381,7 @@ function animate() {
     coaster.position.y = Math.sin(t) * 0.08 + scroll.progress * 1.2;
     coaster.position.x = scroll.progress * 1.4;
     const s = lerp(1, 0.7, scroll.progress);
-    coaster.scale.setScalar(1.7 * s);
+    coaster.scale.setScalar(baseScale * s);
 
     camera.position.z = lerp(7, 8.5, scroll.progress);
   }
