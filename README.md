@@ -120,3 +120,16 @@ Open the file directly in a browser (or `/ember-road` on the Vercel deploy).
 Click to move / search / attack (silent takedown on unaware zombies) · **C** crouch ·
 **E** eat · **B** build (barricade, campfire, spike trap) · **R** camp activities ·
 **T** drive on · **F** time speed · right-drag/WASD pan · wheel zoom · Space re-center.
+
+### 3D version
+
+`ember-road-3d.html` is the same game drawn in real 3D with Three.js (loaded from
+a CDN, so it needs an internet connection). The simulation code is shared with
+the 2D file; only the renderer and mouse picking differ.
+
+- Every model is built in code from primitives: the van and its upgrades, cars,
+  houses, props, trees, and articulated player and zombie figures.
+- Real lights and shadows: a sun that moves through the day, moonlight, a
+  flickering campfire that casts shadows, van and string lights at night.
+- Rotatable camera (**Q / Z**, or middle-drag to orbit) and a graphics quality
+  toggle (**G**).
