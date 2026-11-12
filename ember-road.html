@@ -1,0 +1,1195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ember Road</title>
+<style>
+:root{
+  --bg:#120e16; --panel:rgba(22,17,24,.93); --ink:#f4eadb; --mute:#a99b8c; --line:rgba(255,214,170,.16);
+  --ember:#ff9a4d; --ember2:#ffd27a; --danger:#ff5d5d; --ok:#8fd18b; --cool:#7fc7d9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;user-select:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+.hud{position:fixed;pointer-events:none;z-index:2}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#top{left:12px;top:12px;right:12px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+#clock .big{font-size:18px;font-weight:700;letter-spacing:.02em}
+#clock .sub{color:var(--mute)}
+.bars{display:grid;grid-template-columns:auto 120px auto;gap:4px 8px;align-items:center}
+.bar{height:7px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px}
+.res{display:flex;gap:12px;flex-wrap:wrap}
+.res b{font-size:15px}
+.res span{color:var(--mute)}
+.badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;border:1px solid var(--line);margin-left:6px}
+#log{left:12px;bottom:12px;width:min(380px,calc(100vw - 24px));display:flex;flex-direction:column;gap:4px}
+#log div{background:rgba(18,14,20,.82);border-left:3px solid var(--ember);padding:5px 9px;border-radius:6px;animation:fade 9s forwards}
+#log div.warn{border-color:var(--danger)} #log div.good{border-color:var(--ok)} #log div.cozy{border-color:var(--ember2);font-style:italic}
+@keyframes fade{0%{opacity:0;transform:translateY(6px)}5%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+#bar{right:12px;bottom:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 24px);pointer-events:auto}
+button{font:inherit;color:var(--ink);background:#2a2130;border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--ember);background:#352838}
+button:disabled{opacity:.4;cursor:default}
+button.on{background:#5a3520;border-color:var(--ember)}
+button kbd{opacity:.6;font-size:11px;margin-left:4px}
+#hint{left:50%;transform:translateX(-50%);top:84px;color:var(--ember2);text-shadow:0 1px 3px #000;font-weight:600;text-align:center;white-space:nowrap}
+#tip{position:fixed;z-index:3;pointer-events:none;background:rgba(10,8,12,.9);border:1px solid var(--line);padding:3px 8px;border-radius:6px;font-size:12px;display:none;white-space:nowrap}
+#modal{position:fixed;inset:0;z-index:5;display:none;align-items:center;justify-content:center;background:rgba(8,6,10,.55);backdrop-filter:blur(2px)}
+#modal .card{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow:auto;padding:18px 20px}
+#modal h2{margin:0 0 4px;font-size:20px} #modal h3{margin:14px 0 6px;font-size:14px;color:var(--ember2)}
+#modal p{margin:6px 0;color:#ddd0c0}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:10px 12px}
+.opt small{display:block;color:var(--mute)}
+.opt .cost{white-space:nowrap;color:var(--ember2);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mute{color:var(--mute)}
+ul.k{margin:6px 0;padding-left:18px} ul.k li{margin:2px 0}
+#buildbar{left:50%;transform:translateX(-50%);bottom:64px;display:none;gap:6px;pointer-events:auto}
+@media (max-width:700px){#hint{top:auto;bottom:110px;white-space:normal;width:90vw}.bars{grid-template-columns:auto 80px auto}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top" class="hud">
+  <div id="clock" class="card"></div>
+  <div class="card"><div class="bars" id="stats"></div></div>
+  <div class="card"><div class="res" id="res"></div><div id="pack" class="mute" style="margin-top:4px"></div></div>
+</div>
+<div id="hint" class="hud"></div>
+<div id="log" class="hud"></div>
+<div id="buildbar" class="hud card"></div>
+<div id="bar" class="hud">
+  <button id="bCrouch">Crouch<kbd>C</kbd></button>
+  <button id="bEat">Eat<kbd>E</kbd></button>
+  <button id="bBuild">Build camp<kbd>B</kbd></button>
+  <button id="bCamp">Camp<kbd>R</kbd></button>
+  <button id="bDrive">Drive on<kbd>T</kbd></button>
+  <button id="bSpeed">1×<kbd>F</kbd></button>
+  <button id="bHelp">?</button>
+</div>
+<div id="tip"></div>
+<div id="modal"><div class="card" id="mcard"></div></div>
+
+<script>
+'use strict';
+// =====================================================================
+//  EMBER ROAD — grey-box prototype
+//  Isometric camper-van survival: tense days, cozy nights.
+// =====================================================================
+const HW = 32, HH = 16;              // half tile width / height (iso)
+const MW = 38, MH = 38;              // map size in tiles
+const GAME_MIN_PER_SEC = 4;          // 1 game hour = 15 real seconds at 1x
+const T = {GRASS:0, ROAD:1, DIRT:2, FLOOR:3, TALL:4, FIELD:5, ASPHALT:6, WATER:7, SAND:8};
+const TILE_COL = {
+  0:[96,128,72], 1:[78,76,74], 2:[132,108,76], 3:[120,92,66], 4:[70,108,58],
+  5:[118,104,62], 6:[90,90,92], 7:[58,104,128], 8:[196,176,132]
+};
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const light = document.createElement('canvas'), lctx = light.getContext('2d');
+let DPR = 1, CW = 0, CH = 0;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  CW = innerWidth; CH = innerHeight;
+  for (const c of [cv, light]) { c.width = CW*DPR; c.height = CH*DPR; }
+}
+addEventListener('resize', resize); resize();
+
+const rnd = Math.random, R = (a,b)=>a+rnd()*(b-a), RI = (a,b)=>Math.floor(R(a,b+1)), pick = a=>a[Math.floor(rnd()*a.length)];
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const dist = (ax,ay,bx,by)=>Math.hypot(ax-bx, ay-by);
+const angDiff = (a,b)=>{let d=a-b; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI; return d;};
+
+// ---------------------------------------------------------------------
+//  Game state
+// ---------------------------------------------------------------------
+let S, M, P, cam;
+const UPGRADES = [
+  {id:'rack',   name:'Roof rack',          cost:{scrap:6,wood:2}, desc:'+15 van storage. Visible on the roof.'},
+  {id:'jerry',  name:'Jerry-can mounts',   cost:{scrap:5},        desc:'+20 fuel tank capacity.'},
+  {id:'engine', name:'Engine tune-up',     cost:{scrap:8},        desc:'Driving burns 30% less fuel.'},
+  {id:'pack',   name:'Hiking backpack',    cost:{scrap:4,wood:1}, desc:'Carry 12 instead of 8.'},
+  {id:'awning', name:'Awning & rug',       cost:{scrap:4,wood:3}, desc:'+12 comfort every night you sleep at the van.'},
+  {id:'lights', name:'Solar string lights',cost:{scrap:5},        desc:'Cozy activities give +50% comfort. Van glow is brighter — and more visible.'},
+  {id:'stove',  name:'Camp stove',         cost:{scrap:4},        desc:'Cook hot meals without a campfire.'},
+  {id:'kit',    name:'Folding barricades', cost:{scrap:6,wood:4}, desc:'Barricades are packed up (wood refunded) when you drive on.'},
+];
+const BUILD = [
+  {id:'fence', name:'Barricade',  cost:{wood:2},         key:'1', desc:'Blocks zombies. You can climb over.'},
+  {id:'fire',  name:'Campfire',   cost:{wood:3},         key:'2', desc:'Light, cooking, comfort. Attracts the dead.'},
+  {id:'trap',  name:'Spike trap', cost:{wood:1,scrap:1}, key:'3', desc:'Kills the first zombie that steps on it.'},
+];
+const LOC = {
+  forest:{name:'Pine forest',        desc:'Quiet. Wood and berries.',          z:[2,4]},
+  town:  {name:'Abandoned town',     desc:'Scrap and canned food. Crowded.',   z:[6,9]},
+  gas:   {name:'Gas station',        desc:'Fuel pumps. A few shamblers.',      z:[4,6]},
+  farm:  {name:'Farmstead',          desc:'Crops to harvest, some tools.',     z:[3,5]},
+  lake:  {name:'Lakeside campground',desc:'Few supplies. Tonight\'s camp +15 comfort.', z:[2,3]},
+  goal:  {name:'The Lighthouse',     desc:'The coast. The radio said people are there.', z:[3,4]},
+};
+const PLACE_A = ['Cedar','Mill','Ash','Pine','Hollow','Stone','Fern','Copper','Raven','Willow','Elk','Birch'];
+const PLACE_B = ['brook','ford','ridge','field','creek','haven','gate','fall','wood','crossing'];
+const STOPS_TO_GOAL = 6;
+
+function newGame(){
+  S = {
+    day:1, min:8*60, stop:0, hp:100, hunger:80, comfort:55, rest:'normal',
+    van:{food:3, fuel:14, scrap:2, wood:5, cap:30, fuelCap:40, up:new Set()},
+    pack:{food:0, fuel:0, scrap:0, wood:0}, packCap:8,
+    crouch:false, speedMul:1, ts:1, activity:null, sleeping:false, mode:'play', build:null,
+    kills:0, nightsCamped:0, campBonus:0, warned17:false, warned20:false, spawnedHour:-1, lastHour:8,
+  };
+  loadLocation('forest', 'Fernhollow');
+  showIntro();
+}
+
+// ---------------------------------------------------------------------
+//  Map
+// ---------------------------------------------------------------------
+const OBJ = {
+  wall:  {move:1, sight:1},
+  tree:  {move:1, sight:1, act:'Chop', time:3.5, noise:5},
+  stump: {move:0, sight:0},
+  bush:  {move:1, sight:0, act:'Forage', time:1.5, noise:0},
+  car:   {move:1, sight:0, act:'Search', time:2.5, noise:2.5},
+  crate: {move:1, sight:0, act:'Search', time:2,   noise:2},
+  shelf: {move:1, sight:0, act:'Search', time:2,   noise:1.5},
+  pump:  {move:1, sight:0, act:'Siphon', time:3,   noise:1.5},
+  crop:  {move:0, sight:0, act:'Harvest',time:1.5, noise:0},
+  rock:  {move:1, sight:0},
+  fence: {move:1, sight:0},
+  trap:  {move:0, sight:0},
+  fire:  {move:1, sight:0, act:'Camp'},
+  van:   {move:1, sight:1, act:'Van'},
+};
+const idx = (x,y)=>y*M.w+x;
+const inb = (x,y)=>x>=0&&y>=0&&x<M.w&&y<M.h;
+function objAt(x,y){ return inb(x,y) ? M.occ[idx(x,y)] : null; }
+function addObj(type,x,y,extra={}){
+  const o = Object.assign({type,x,y,w:1,h:1,seed:rnd()}, extra);
+  for (let j=0;j<o.h;j++) for (let i=0;i<o.w;i++){ if(!inb(x+i,y+j)||M.occ[idx(x+i,y+j)]) return null; }
+  for (let j=0;j<o.h;j++) for (let i=0;i<o.w;i++) M.occ[idx(x+i,y+j)] = o;
+  M.objs.push(o); return o;
+}
+function removeObj(o){
+  for (let j=0;j<o.h;j++) for (let i=0;i<o.w;i++) if (M.occ[idx(o.x+i,o.y+j)]===o) M.occ[idx(o.x+i,o.y+j)] = null;
+  M.objs.splice(M.objs.indexOf(o),1);
+}
+function free(x,y){ return inb(x,y) && !M.occ[idx(x,y)] && M.tiles[idx(x,y)]!==T.WATER; }
+function blocksMove(x,y,who){
+  if (!inb(x,y)) return true;
+  if (M.tiles[idx(x,y)]===T.WATER) return true;
+  const o = M.occ[idx(x,y)]; if (!o) return false;
+  if (o.type==='fence') return who!=='player';
+  return !!OBJ[o.type].move;
+}
+function blocksSight(x,y){
+  if (!inb(x,y)) return true;
+  const o = M.occ[idx(x,y)]; return !!(o && OBJ[o.type].sight);
+}
+
+function loadLocation(type, name){
+  M = {w:MW, h:MH, type, name, tiles:new Uint8Array(MW*MH), occ:new Array(MW*MH).fill(null),
+       objs:[], zs:[], decals:[], parts:[], floats:[], shade:new Float32Array(MW*MH)};
+  for (let i=0;i<M.shade.length;i++) M.shade[i] = R(-1,1);
+  const roadY = 6;
+  // terrain
+  for (let y=0;y<MH;y++) for (let x=0;x<MW;x++) M.tiles[idx(x,y)] = T.GRASS;
+  blob(T.TALL, type==='forest'?7:4, 2,4);
+  if (type!=='lake') for (let x=0;x<MW;x++){ M.tiles[idx(x,roadY)] = T.ROAD; M.tiles[idx(x,roadY+1)] = T.ROAD; }
+  else for (let x=0;x<MW;x++){ M.tiles[idx(x,roadY)] = T.DIRT; M.tiles[idx(x,roadY+1)] = T.DIRT; }
+
+  // van
+  M.van = addObj('van', 3, roadY, {w:2, h:1});
+  P = {x:3.5, y:roadY+2.5, dir:0, path:[], act:null, hit:0, anim:0, sit:false, hidden:false};
+
+  const houses = [];
+  const house = (x,y,w,h,door='n')=>{
+    for (let j=0;j<h;j++) for (let i=0;i<w;i++){
+      const gx=x+i, gy=y+j; if(!inb(gx,gy)) continue;
+      const edge = i===0||j===0||i===w-1||j===h-1;
+      M.tiles[idx(gx,gy)] = T.FLOOR;
+      const isDoor = (door==='n' && j===0 && i===Math.floor(w/2)) || (door==='w' && i===0 && j===Math.floor(h/2));
+      if (edge && !isDoor){ const o=M.occ[idx(gx,gy)]; if(o) removeObj(o); addObj('wall',gx,gy); }
+    }
+    houses.push({x,y,w,h});
+  };
+  const interior = (h, n, make)=>{ for(let k=0;k<n;k++){ for(let t=0;t<20;t++){ const x=RI(h.x+1,h.x+h.w-2), y=RI(h.y+1,h.y+h.h-2); if(free(x,y) && !(x===h.x+Math.floor(h.w/2) && y===h.y+1)){ make(x,y); break; } } } };
+
+  if (type==='town'){
+    for (const [x,y,w,h] of [[3,10,6,5],[11,10,7,6],[21,10,6,5],[29,11,6,6],[5,19,7,6],[16,20,6,5],[25,21,7,6],[9,28,6,5],[22,29,7,5]]) house(x,y,w,h);
+    for (const h of houses) interior(h, RI(1,3), (x,y)=>addObj(rnd()<.5?'shelf':'crate',x,y,{loot:{food:RI(0,2),scrap:RI(1,3)}}));
+    for (let k=0;k<6;k++) addObj('car', RI(8,MW-2), roadY+RI(0,1), {loot:{fuel:RI(2,5),scrap:RI(0,2)}, col:pick(['#7a4a3a','#4a5a6a','#6a6a4a','#5a3a5a'])});
+  } else if (type==='gas'){
+    for (let y=roadY+2;y<roadY+10;y++) for (let x=12;x<26;x++) M.tiles[idx(x,y)] = T.ASPHALT;
+    house(19,roadY+9,7,6);
+    interior(houses[0], 3, (x,y)=>addObj('shelf',x,y,{loot:{food:RI(1,2),scrap:RI(0,1)}}));
+    for (const x of [14,17]) addObj('pump', x, roadY+4, {loot:{fuel:RI(7,11)}});
+    for (let k=0;k<4;k++) addObj('car', RI(8,MW-2), roadY+RI(0,1), {loot:{fuel:RI(2,4),scrap:RI(0,2)}, col:pick(['#7a4a3a','#4a5a6a','#6a6a4a'])});
+    house(6,24,6,5); interior(houses[1],2,(x,y)=>addObj('crate',x,y,{loot:{scrap:RI(1,3),food:RI(0,1)}}));
+  } else if (type==='farm'){
+    for (let y=14;y<26;y++) for (let x=6;x<20;x++) M.tiles[idx(x,y)] = T.FIELD;
+    for (let y=15;y<25;y+=2) for (let x=7;x<19;x+=2) if (rnd()<.55) addObj('crop',x,y,{loot:{food:RI(1,2)}});
+    house(24,12,8,7); house(23,24,6,5,'w');
+    interior(houses[0],3,(x,y)=>addObj('crate',x,y,{loot:{scrap:RI(1,3),wood:RI(0,2)}}));
+    interior(houses[1],2,(x,y)=>addObj('shelf',x,y,{loot:{food:RI(1,2)}}));
+    addObj('car', 28, roadY+1, {loot:{fuel:RI(3,6),scrap:RI(1,2)}, col:'#6a3a2a'});
+  } else if (type==='forest'){
+    house(24,20,5,5); interior(houses[0],2,(x,y)=>addObj('crate',x,y,{loot:{food:RI(1,2),scrap:RI(1,2)}}));
+    addObj('car', 20, roadY, {loot:{fuel:RI(3,5),scrap:RI(1,2)}, col:'#4a5a6a'});
+    for (let k=0;k<10;k++){ const x=RI(2,MW-3), y=RI(roadY+3,MH-3); if(free(x,y)) addObj('bush',x,y,{loot:{food:1}}); }
+  } else if (type==='lake'){
+    for (let y=0;y<MH;y++) for (let x=0;x<MW;x++){
+      const d = Math.hypot((x-24)/11,(y-24)/9);
+      if (d<1) M.tiles[idx(x,y)] = T.WATER; else if (d<1.18) M.tiles[idx(x,y)] = T.SAND;
+    }
+    house(5,16,5,5); interior(houses[0],2,(x,y)=>addObj('crate',x,y,{loot:{food:RI(0,2),scrap:RI(1,2),wood:RI(0,1)}}));
+    addObj('car', 12, roadY+1, {loot:{fuel:RI(2,5),scrap:RI(0,1)}, col:'#6a6a4a'});
+    for (let k=0;k<5;k++){ const x=RI(2,MW-3), y=RI(roadY+3,MH-3); if(free(x,y)) addObj('bush',x,y,{loot:{food:1}}); }
+  } else if (type==='goal'){
+    for (let y=0;y<MH;y++) for (let x=0;x<MW;x++){ if (x+y>48) M.tiles[idx(x,y)] = T.WATER; else if (x+y>44) M.tiles[idx(x,y)] = T.SAND; }
+    house(26,14,5,5);
+  }
+  // trees & rocks
+  const treeN = {forest:150, town:30, gas:40, farm:45, lake:70, goal:40}[type];
+  for (let k=0;k<treeN;k++){
+    const x=RI(0,MW-1), y=RI(0,MH-1);
+    if (Math.abs(y-roadY-0.5)<3) continue;
+    if (dist(x,y,P.x,P.y)<4) continue;
+    const t = M.tiles[idx(x,y)];
+    if (free(x,y) && (t===T.GRASS||t===T.TALL)) addObj('tree',x,y);
+  }
+  for (let k=0;k<10;k++){ const x=RI(0,MW-1), y=RI(roadY+3,MH-1); if(free(x,y)&&M.tiles[idx(x,y)]===T.GRASS) addObj('rock',x,y); }
+
+  // zombies
+  const [zmin,zmax] = LOC[type].z;
+  const n = RI(zmin,zmax) + Math.floor((S.stop||0)/2);
+  for (let k=0;k<n;k++) spawnZombie(false);
+  S.sleeping=false; S.activity=null; S.ts=1;
+  S.campBonus = type==='lake' ? 15 : 0;
+  centerCam(true);
+}
+function blob(tile, count, rmin, rmax){
+  for (let b=0;b<count;b++){
+    const cx=RI(0,MW-1), cy=RI(10,MH-1), r=R(rmin,rmax);
+    for (let y=Math.floor(cy-r);y<=cy+r;y++) for (let x=Math.floor(cx-r);x<=cx+r;x++)
+      if (inb(x,y) && dist(x,y,cx,cy)<r*R(.7,1)) M.tiles[idx(x,y)] = tile;
+  }
+}
+function spawnZombie(atNight){
+  for (let t=0;t<80;t++){
+    let x,y;
+    if (atNight){ // at the darkness edge, roughly 13-17 tiles from the van
+      const a=R(0,Math.PI*2), r=R(13,17); x=Math.round(M.van.x+1+Math.cos(a)*r); y=Math.round(M.van.y+Math.sin(a)*r);
+    } else { x=RI(1,MW-2); y=RI(1,MH-2); }
+    if (!free(x,y) || dist(x,y,P.x,P.y)<11) continue;
+    M.zs.push({x:x+.5, y:y+.5, dir:R(0,6.28), hp:100, state:'wander', sus:0, path:[], repath:0, home:{x:x+.5,y:y+.5},
+               t:R(0,3), atk:0, lost:0, target:null, bob:R(0,6), night:atNight});
+    return;
+  }
+}
+
+// ---------------------------------------------------------------------
+//  Pathfinding (8-dir A*, no corner cutting). costFn returns Infinity if blocked.
+// ---------------------------------------------------------------------
+function astar(sx,sy,goalTest,hx,hy,costFn,maxN=2600){
+  const N=M.w*M.h, g=new Float32Array(N).fill(Infinity), came=new Int32Array(N).fill(-1), closed=new Uint8Array(N);
+  const heap=[]; const push=(i,f)=>{heap.push([f,i]); let k=heap.length-1; while(k>0){const p=(k-1)>>1; if(heap[p][0]<=heap[k][0])break; [heap[p],heap[k]]=[heap[k],heap[p]]; k=p;}};
+  const pop=()=>{const top=heap[0], last=heap.pop(); if(heap.length){heap[0]=last; let k=0; for(;;){const l=2*k+1,r=l+1; let m=k; if(l<heap.length&&heap[l][0]<heap[m][0])m=l; if(r<heap.length&&heap[r][0]<heap[m][0])m=r; if(m===k)break; [heap[m],heap[k]]=[heap[k],heap[m]]; k=m;}} return top;};
+  const s=idx(sx,sy); g[s]=0; push(s,0); let n=0;
+  while(heap.length && n++<maxN){
+    const [,cur]=pop(); if(closed[cur])continue; closed[cur]=1;
+    const cx=cur%M.w, cy=(cur/M.w)|0;
+    if (goalTest(cx,cy)){ const out=[]; let c=cur; while(c!==s){ out.push({x:c%M.w,y:(c/M.w)|0}); c=came[c]; } return out.reverse(); }
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+      if(!dx&&!dy)continue; const nx=cx+dx, ny=cy+dy; if(!inb(nx,ny))continue;
+      let c=costFn(nx,ny); if(c===Infinity)continue;
+      if (dx&&dy){ if(costFn(cx+dx,cy)===Infinity||costFn(cx,cy+dy)===Infinity)continue; c*=1.414; }
+      const ni=idx(nx,ny), ng=g[cur]+c;
+      if (ng<g[ni]){ g[ni]=ng; came[ni]=cur; push(ni, ng+Math.hypot(nx-hx,ny-hy)); }
+    }
+  }
+  return null;
+}
+const playerCost = (x,y)=>blocksMove(x,y,'player')?Infinity:1;
+const zombieCost = (x,y)=>{ if(!inb(x,y))return Infinity; const o=M.occ[idx(x,y)]; if(o&&o.type==='fence')return 10; return blocksMove(x,y,'zombie')?Infinity:1; };
+function adjacentTo(o,x,y){ return x>=o.x-1 && x<=o.x+o.w && y>=o.y-1 && y<=o.y+o.h && !(x>=o.x&&x<o.x+o.w&&y>=o.y&&y<o.y+o.h); }
+
+// ---------------------------------------------------------------------
+//  Time / phases
+// ---------------------------------------------------------------------
+const hourOf = ()=>Math.floor(S.min/60)%24;
+const isNight = ()=>{ const h=S.min/60%24; return h>=20.5||h<5.5; };
+function phaseName(){ const h=S.min/60%24; if(h<5.5||h>=20.5)return 'Night'; if(h<7)return 'Dawn'; if(h<17)return 'Day'; return 'Dusk'; }
+function darkness(){ // 0..0.86
+  const h=S.min/60%24;
+  if (h>=7&&h<17) return 0;
+  if (h>=17&&h<21) return ((h-17)/4)**1.4*.86;
+  if (h>=21||h<5) return .86;
+  return (1-(h-5)/2)*.86;
+}
+function duskTint(){ const h=S.min/60%24; if(h>=15.5&&h<20.5) return Math.sin((h-15.5)/5*Math.PI)*.22; if(h>=5&&h<8) return Math.sin((h-5)/3*Math.PI)*.15; return 0; }
+const clockStr = ()=>{ const m=Math.floor(S.min)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+
+function tickTime(gm){
+  const before = S.min; S.min += gm;
+  // stats
+  S.hunger = clamp(S.hunger - gm/60*4, 0, 100);
+  S.comfort = clamp(S.comfort - gm/60*1.2, 0, 100);
+  if (S.hunger<=0) S.hp -= gm/60*6;
+  else if (S.hunger>50 && S.rest==='rested') S.hp = Math.min(100, S.hp + gm/60*2);
+  const h = hourOf();
+  if (h!==S.lastHour){
+    S.lastHour = h;
+    if (h===17) log('The sun is getting low. Get back to the van and make camp. (B to build)', 'warn');
+    if (h===20) log('Night falls. The dead follow light and noise.', 'warn');
+    if ((h>=21||h<5)){ // night spawns
+      const chance = .55 + S.day*.08 + (anyFire()?.25:0);
+      if (rnd()<chance) spawnZombie(true);
+      if (S.day>=3 && rnd()<.3) spawnZombie(true);
+    }
+    if (h===6) newDay();
+  }
+  for (const o of M.objs) if (o.type==='fire' && o.burn>0) o.burn -= gm/60;
+}
+function newDay(){
+  S.day++;
+  const slept = S.sleeping;
+  if (S.sleeping){ S.sleeping=false; S.ts=1; P.hidden=false; }
+  let c = S.comfort;
+  if (!slept){ c -= 25; log('You didn\'t sleep. Everything aches.', 'warn'); }
+  S.rest = c>=60?'rested':c<25?'restless':'normal';
+  S.hp = Math.min(100, S.hp + (slept ? 10 + Math.max(0,c)*.35 : 0));
+  log(`Day ${S.day}. ${S.rest==='rested'?'You feel well rested (+speed, regen).':S.rest==='restless'?'Restless night (-speed).':'An ordinary morning.'}`, S.rest==='restless'?'warn':'good');
+  S.comfort = clamp(S.comfort*.7, 0, 100);
+  for (const z of M.zs) z.night=false;
+}
+
+// ---------------------------------------------------------------------
+//  Inventory helpers
+// ---------------------------------------------------------------------
+const packUsed = ()=>S.pack.food+S.pack.fuel+S.pack.scrap+S.pack.wood;
+const vanUsed = ()=>S.van.food+S.van.scrap+S.van.wood;
+const have = (cost)=>Object.entries(cost).every(([k,v])=>S.pack[k]+S.van[k]>=v);
+function spend(cost){ for (const [k,v] of Object.entries(cost)){ let n=v; const a=Math.min(n,S.pack[k]); S.pack[k]-=a; n-=a; S.van[k]-=n; } }
+const costStr = c=>Object.entries(c).map(([k,v])=>`${v} ${k}`).join(' · ');
+const nearVan = (r=2.2)=>{ const v=M.van; const cx=clamp(P.x,v.x,v.x+v.w), cy=clamp(P.y,v.y,v.y+v.h); return dist(P.x,P.y,cx,cy)<r; };
+function unload(){
+  let moved = 0;
+  const f = Math.min(S.pack.fuel, S.van.fuelCap - S.van.fuel); S.van.fuel+=f; S.pack.fuel-=f; moved+=f;
+  for (const k of ['food','scrap','wood']){ const n=Math.min(S.pack[k], S.van.cap-vanUsed()); S.van[k]+=n; S.pack[k]-=n; moved+=n; }
+  if (moved) log(`Unloaded ${moved} into the van.`, 'good');
+  if (packUsed()) log('Van storage is full — upgrade with a roof rack.', 'warn');
+}
+function takeLoot(o){
+  const got = [];
+  for (const k of ['fuel','food','scrap','wood']){
+    const n = Math.min(o.loot[k]||0, S.packCap-packUsed());
+    if (n>0){ S.pack[k]+=n; o.loot[k]-=n; got.push(`${n} ${k}`); }
+  }
+  const left = Object.values(o.loot).reduce((a,b)=>a+(b||0),0);
+  if (got.length) { log(`Found ${got.join(', ')}.`, 'good'); floatText(o.x+.5,o.y+.5,'+'+got.join(' +'),'#ffd27a'); }
+  else if (left) log('Backpack full. Unload at the van.', 'warn');
+  else log('Nothing useful.', '');
+  if (!left) o.searched = true;
+  if (left && got.length) log('Backpack full — there\'s more here.', 'warn');
+}
+function eat(){
+  if (S.pack.food>0) S.pack.food--; else if (nearVan() && S.van.food>0) S.van.food--; else { log(nearVan()?'No food left.':'No food in your backpack.', 'warn'); return; }
+  S.hunger = clamp(S.hunger+25,0,100); log('You eat something cold out of a can. (+25 hunger)');
+}
+
+// ---------------------------------------------------------------------
+//  Noise & perception
+// ---------------------------------------------------------------------
+function noise(x,y,r){
+  for (const z of M.zs){ if (z.state==='chase') continue; if (dist(z.x,z.y,x,y)<=r){ z.state='investigate'; z.target={x,y}; z.repath=0; z.sus=Math.max(z.sus,.35);} }
+  M.parts.push({ring:true, x, y, r:0, max:r, life:1});
+}
+function lineClear(ax,ay,bx,by){
+  const d=dist(ax,ay,bx,by), n=Math.ceil(d*4);
+  for (let i=1;i<n;i++){ const t=i/n, x=Math.floor(ax+(bx-ax)*t), y=Math.floor(ay+(by-ay)*t);
+    if (x===Math.floor(bx)&&y===Math.floor(by)) break;
+    if (x===Math.floor(ax)&&y===Math.floor(ay)) continue;
+    if (blocksSight(x,y)) return false; }
+  return true;
+}
+function lights(){
+  const L=[]; const dk=darkness();
+  for (const o of M.objs) if (o.type==='fire' && o.burn>0) L.push({x:o.x+.5,y:o.y+.5,r:5.5,fire:true});
+  if (dk>0){
+    L.push({x:M.van.x+1, y:M.van.y+.5, r:S.van.up.has('lights')?4.2:2.4, van:true});
+    if (!P.hidden) L.push({x:P.x,y:P.y,r:1.7,player:true});
+  }
+  return L;
+}
+function litAt(x,y){ if (darkness()<.3) return true; return lights().some(l=>!l.player && dist(x,y,l.x,l.y)<l.r*.85); }
+function visionRange(z){ const dk=darkness(); return dk>.3 ? (litAt(P.x,P.y)?6:3.2) : 6.5; }
+const CONE = 0.62; // half angle (rad)
+function inTall(){ const t=M.tiles[idx(Math.floor(P.x),Math.floor(P.y))]; return t===T.TALL; }
+function canSee(z){
+  if (P.hidden || S.mode==='dead') return 0;
+  const d=dist(z.x,z.y,P.x,P.y), R0=visionRange(z);
+  if (d>R0) return 0;
+  if (d>0.9 && Math.abs(angDiff(Math.atan2(P.y-z.y,P.x-z.x), z.dir))>CONE) return 0;
+  if (!lineClear(z.x,z.y,P.x,P.y)) return 0;
+  if (S.crouch && inTall() && d>1.4) return 0;
+  if (S.crouch && d>R0*.55) return 0; // striped zone: crouching is safe
+  return d<R0*.55 ? 1 : .5;
+}
+
+// ---------------------------------------------------------------------
+//  Update
+// ---------------------------------------------------------------------
+function moveAlong(e, speed, dt, onBlocked){
+  if (!e.path.length) return false;
+  const n=e.path[0], tx=n.x+.5, ty=n.y+.5;
+  const dx=tx-e.x, dy=ty-e.y, d=Math.hypot(dx,dy);
+  if (onBlocked && onBlocked(n)) return false;
+  e.dir = Math.atan2(dy,dx);
+  const step = speed*dt;
+  if (d<=step){ e.x=tx; e.y=ty; e.path.shift(); } else { e.x+=dx/d*step; e.y+=dy/d*step; }
+  return true;
+}
+function playerSpeed(){ let s = S.crouch?1.35:2.6; if (S.rest==='rested') s*=1.15; if (S.rest==='restless') s*=.85; if (S.hunger<=0) s*=.8; return s; }
+
+function update(dt){
+  if (S.mode==='dead'||S.mode==='won') return;
+  const sdt = dt*S.ts; // simulated seconds
+  tickTime(sdt*GAME_MIN_PER_SEC);
+  if (S.hp<=0) return die();
+
+  // ----- player
+  if (!P.hidden){
+    if (P.act){
+      const a=P.act;
+      if (a.kind==='goto'){
+        if (!P.path.length){ startAction(a); }
+      } else if (a.kind==='work'){
+        a.t += sdt;
+        if (a.t>=a.dur){ P.act=null; a.done(); }
+      } else if (a.kind==='attack'){
+        const z=a.z;
+        if (z.hp<=0){ P.act=null; }
+        else if (dist(P.x,P.y,z.x,z.y)<1.25){
+          P.path=[]; P.dir=Math.atan2(z.y-P.y,z.x-P.x);
+          if (z.state!=='chase' && !a.started){ // stealth takedown (also works on zombies busy bashing a barricade)
+            a.started=true; z.hp=0; killZombie(z, true); P.act=null; P.anim=.4;
+          } else {
+            a.started=true; P.hit-=sdt;
+            if (P.hit<=0){ P.hit=.55; z.hp-=34; P.anim=.25; noise(P.x,P.y,4); blood(z.x,z.y,3);
+              if (z.state!=='chase'){ z.state='chase'; z.sus=1; }
+              if (z.hp<=0){ killZombie(z,false); P.act=null; } }
+          }
+        } else if (!P.path.length || (a.re-=sdt)<0){ a.re=.4; P.path=astar(Math.floor(P.x),Math.floor(P.y),(x,y)=>dist(x+.5,y+.5,z.x,z.y)<1.2,z.x,z.y,playerCost)||[]; }
+      }
+    }
+    if (P.path.length){
+      P.sit=false;
+      moveAlong(P, playerSpeed(), sdt);
+      if (P.act && P.act.kind==='work'){ P.act=null; }
+    }
+    if (S.activity){
+      S.activity.left -= sdt*GAME_MIN_PER_SEC/60;
+      P.sit=true;
+      if (S.activity.left<=0){ const a=S.activity; S.activity=null; S.ts=1; P.sit=false; a.done(); }
+    }
+  }
+  P.anim=Math.max(0,P.anim-dt);
+
+  // ----- zombies
+  let threatNear = false;
+  for (const z of M.zs){
+    if (z.hp<=0) continue;
+    z.bob += sdt*4;
+    const see = canSee(z);
+    if (see){ z.sus = Math.min(1, z.sus + sdt*(see===1?1.6:.7)); if (z.state==='wander'){ z.state='investigate'; z.target={x:P.x,y:P.y}; z.repath=0; } z.dir += angDiff(Math.atan2(P.y-z.y,P.x-z.x),z.dir)*Math.min(1,sdt*3); }
+    else if (z.state!=='chase') z.sus = Math.max(0, z.sus - sdt*.25);
+    if (z.sus>=1 && z.state!=='chase'){ z.state='chase'; z.lost=0; groan(); if(see) log('You\'ve been spotted!', 'warn'); }
+
+    if (z.state==='chase'){
+      if (see) { z.lost=0; z.last={x:P.x,y:P.y}; } else z.lost+=sdt;
+      if (z.lost>6 || P.hidden){ z.state='investigate'; z.target=z.last||{x:P.x,y:P.y}; z.sus=.6; }
+      const d=dist(z.x,z.y,P.x,P.y);
+      if (d<1.05 && !P.hidden){
+        z.path=[]; z.atk-=sdt; z.dir=Math.atan2(P.y-z.y,P.x-z.x);
+        if (z.atk<=0){ z.atk=1.15; S.hp-=11; blood(P.x,P.y,2); shake=6; log('You\'re bitten! (-11 HP)','warn'); interruptCozy('A zombie is on you!'); }
+      } else {
+        z.repath-=sdt;
+        if (z.repath<=0){ z.repath=.5; z.path = astar(Math.floor(z.x),Math.floor(z.y),(x,y)=>dist(x+.5,y+.5,P.x,P.y)<1.1,P.x,P.y,zombieCost)||[]; }
+        zMove(z, 1.55, sdt);
+      }
+      if (d<4) threatNear = true;
+    } else if (z.state==='investigate'){
+      z.repath-=sdt;
+      if (z.repath<=0){ z.repath=2; const t=z.target; z.path = astar(Math.floor(z.x),Math.floor(z.y),(x,y)=>dist(x+.5,y+.5,t.x,t.y)<1.5,t.x,t.y,zombieCost,1500)||[]; }
+      if (!zMove(z,.95,sdt) && (!z.path.length)){ z.t-=sdt; z.dir+=sdt*1.2; if(z.t<-3){ z.state='wander'; z.t=2; z.home={x:z.x,y:z.y}; } }
+    } else if (z.state==='bash'){
+      const f=z.fence;
+      if (!f || !M.objs.includes(f)){ z.state='wander'; z.t=0; }
+      else { z.dir=Math.atan2(f.y+.5-z.y,f.x+.5-z.x); z.atk-=sdt; if (z.atk<=0){ z.atk=1; f.hp-=3.5; M.parts.push({x:f.x+.5,y:f.y+.5,vx:R(-1,1),vy:R(-1,1),z:10,vz:R(10,40),life:.6,col:'#a07a4a'});
+        if (dist(P.x,P.y,f.x,f.y)<9 && rnd()<.25) noiseAudio('thud');
+        if (f.hp<=0){ removeObj(f); log('A barricade gives way!','warn'); interruptCozy('Splintering wood wakes you!'); z.state='wander'; z.t=0; } } }
+    } else { // wander / attracted to light at night
+      z.t-=sdt;
+      const fire = isNight()||darkness()>.5 ? nearestLight(z) : null;
+      if (fire && z.t<=0){
+        z.t=3; z.path = astar(Math.floor(z.x),Math.floor(z.y),(x,y)=>dist(x+.5,y+.5,fire.x,fire.y)<1.6,fire.x,fire.y,zombieCost,3000)||[];
+      } else if (z.t<=0 && !z.path.length){
+        z.t=R(2,5);
+        for (let k=0;k<8;k++){ const tx=Math.floor(z.home.x+R(-4,4)), ty=Math.floor(z.home.y+R(-4,4)); if(inb(tx,ty)&&!blocksMove(tx,ty,'zombie')){ z.path=astar(Math.floor(z.x),Math.floor(z.y),(x,y)=>x===tx&&y===ty,tx,ty,zombieCost,500)||[]; break; } }
+      }
+      zMove(z,.55,sdt);
+    }
+    // traps
+    const o = objAt(Math.floor(z.x),Math.floor(z.y));
+    if (o && o.type==='trap'){ removeObj(o); z.hp=0; killZombie(z,false,'trap'); }
+    // wake sleeper if van is being pawed
+    if (S.sleeping && dist(z.x,z.y,M.van.x+1,M.van.y+.5)<2.2){ interruptCozy('Something is scratching at the van door.'); }
+    if (S.activity && dist(z.x,z.y,P.x,P.y)<4.5 && (z.state==='chase'||litAt(z.x,z.y))) interruptCozy('Something moves at the edge of the light.');
+  }
+  M.zs = M.zs.filter(z=>z.hp>0);
+  if (threatNear && S.speedMul>1){ S.speedMul=1; S.ts=1; }
+
+  // particles
+  for (const p of M.parts){ p.life-=dt; if(p.ring){p.r+=dt*p.max*2.2;} else { p.x+=p.vx*dt*.6; p.y+=p.vy*dt*.6; p.z+=p.vz*dt; p.vz-=60*dt; if(p.z<0){p.z=0;p.vz=0;} } }
+  M.parts = M.parts.filter(p=>p.life>0);
+  for (const f of M.floats){ f.life-=dt; f.z+=dt*24; }
+  M.floats = M.floats.filter(f=>f.life>0);
+  if (rnd()<dt*30) for (const o of M.objs) if (o.type==='fire'&&o.burn>0&&rnd()<.5) M.parts.push({x:o.x+.5+R(-.15,.15),y:o.y+.5+R(-.15,.15),vx:R(-.3,.3),vy:R(-.3,.3),z:8,vz:R(30,60),life:R(.6,1.4),col:pick(['#ffb347','#ff7b2e','#ffd27a']),ember:true});
+}
+function zMove(z, speed, dt){
+  return moveAlong(z, speed, dt, (n)=>{
+    const o=objAt(n.x,n.y);
+    if (o && o.type==='fence'){ z.state='bash'; z.fence=o; z.atk=.5; z.path=[]; return true; }
+    if (blocksMove(n.x,n.y,'zombie')){ z.path=[]; return true; }
+    return false;
+  });
+}
+function nearestLight(z){
+  let best=null, bd=17;
+  for (const l of lights()){ if (l.player) continue; const d=dist(z.x,z.y,l.x,l.y); const reach = l.fire?17:(S.van.up.has('lights')?11:7); if (d<reach && d<bd && d>1.8){ bd=d; best=l; } }
+  return best;
+}
+function killZombie(z, stealth, how){
+  S.kills++; blood(z.x,z.y,stealth?4:6); M.decals.push({x:z.x,y:z.y,r:R(.25,.4),a:R(0,6)});
+  if (stealth){ log('Silent takedown.', 'good'); noise(z.x,z.y,1.2); }
+  else if (how==='trap') log('A spike trap did its job.', 'good');
+  else log('Zombie down.', 'good');
+}
+function blood(x,y,n){ for(let i=0;i<n*4;i++) M.parts.push({x,y,vx:R(-1.5,1.5),vy:R(-1.5,1.5),z:16,vz:R(10,50),life:R(.4,.9),col:'#7a1e1e'}); }
+function floatText(x,y,t,col){ M.floats.push({x,y,t,col,z:20,life:1.8}); }
+function interruptCozy(msg){
+  if (S.activity){ S.activity=null; S.ts=1; P.sit=false; log(msg,'warn'); }
+  if (S.sleeping){ S.sleeping=false; S.ts=1; P.hidden=false; P.x=M.van.x+1.5; P.y=M.van.y+1.5; log(msg,'warn'); S.comfort=Math.max(0,S.comfort-10); }
+  if (S.ts>1 && !S.sleeping) S.ts=1;
+}
+function anyFire(){ return M.objs.some(o=>o.type==='fire'&&o.burn>0); }
+function nearFire(r=2.6){ return M.objs.some(o=>o.type==='fire'&&o.burn>0&&dist(P.x,P.y,o.x+.5,o.y+.5)<r); }
+
+// ---------------------------------------------------------------------
+//  Actions
+// ---------------------------------------------------------------------
+function orderMove(tx,ty){
+  if (!inb(tx,ty)) return;
+  S.activity && interruptCozy('You get up.');
+  P.act=null;
+  const p = astar(Math.floor(P.x),Math.floor(P.y),(x,y)=>x===tx&&y===ty,tx,ty,playerCost);
+  if (p){ P.path=p; M.marker={x:tx+.5,y:ty+.5,life:.8}; } else log('Can\'t get there.','');
+}
+function orderInteract(o){
+  S.activity && interruptCozy('You get up.');
+  const sx=Math.floor(P.x), sy=Math.floor(P.y);
+  if (adjacentTo(o,sx,sy)) { P.path=[]; startAction({kind:'goto',o}); return; }
+  const p = astar(sx,sy,(x,y)=>adjacentTo(o,x,y),o.x+o.w/2,o.y+o.h/2,playerCost);
+  if (p){ P.path=p; P.act={kind:'goto',o}; } else log('Can\'t reach that.','');
+}
+function orderAttack(z){ S.activity && interruptCozy('You get up.'); P.act={kind:'attack',z,re:0,started:false}; P.path=[]; }
+function startAction(a){
+  const o=a.o; P.act=null; P.dir=Math.atan2(o.y+o.h/2-P.y,o.x+o.w/2-P.x);
+  const d=OBJ[o.type];
+  if (o.type==='van'){ unload(); openVanMenu(); return; }
+  if (o.type==='fire'){ openCamp(); return; }
+  if (o.searched){ log('Already picked clean.'); return; }
+  if (packUsed()>=S.packCap){ log('Backpack full. Unload at the van.','warn'); return; }
+  if (d.noise) noise(P.x,P.y,d.noise);
+  P.act={kind:'work', t:0, dur:d.time, label:d.act, done:()=>{
+    if (o.type==='tree'){ const n=Math.min(2,S.packCap-packUsed()); S.pack.wood+=n; floatText(o.x+.5,o.y+.5,`+${n} wood`,'#ffd27a'); log(`Chopped ${n} wood.`, 'good'); removeObj(o); addObj('stump',o.x,o.y); }
+    else { takeLoot(o); if (o.type==='crop'&&o.searched) removeObj(o); if (o.type==='bush'&&o.searched) o.bare=true; }
+  }};
+}
+function toggleCrouch(){ S.crouch=!S.crouch; }
+
+// build mode
+function toggleBuild(){
+  if (S.mode==='build'){ S.mode='play'; S.build=null; } else { S.mode='build'; S.build=S.build||'fence'; }
+  renderBuildBar();
+}
+function renderBuildBar(){
+  const bb=document.getElementById('buildbar');
+  if (S.mode!=='build'){ bb.style.display='none'; return; }
+  bb.style.display='flex';
+  bb.innerHTML = BUILD.map(b=>`<button data-b="${b.id}" class="${S.build===b.id?'on':''}" title="${b.desc}" ${have(b.cost)?'':'disabled'}>${b.key}. ${b.name} <span class="mute">${costStr(b.cost)}</span></button>`).join('') + `<button data-b="x">Done <kbd>Esc</kbd></button>`;
+  bb.querySelectorAll('button').forEach(btn=>btn.onclick=e=>{ e.stopPropagation(); const id=btn.dataset.b; if(id==='x') toggleBuild(); else { S.build=id; renderBuildBar(); } });
+}
+function canPlace(x,y){
+  if (!free(x,y)) return false;
+  if (dist(x+.5,y+.5,M.van.x+1,M.van.y+.5)>7.5) return false;
+  if (Math.floor(P.x)===x&&Math.floor(P.y)===y) return false;
+  if (M.zs.some(z=>Math.floor(z.x)===x&&Math.floor(z.y)===y)) return false;
+  return true;
+}
+function place(x,y){
+  const b=BUILD.find(b=>b.id===S.build); if(!b) return;
+  if (!have(b.cost)){ log(`Need ${costStr(b.cost)}.`,'warn'); return; }
+  if (!canPlace(x,y)){ log('Can\'t build there (must be free, within 7 tiles of the van).',''); return; }
+  spend(b.cost);
+  const o = addObj(b.id,x,y, b.id==='fence'?{hp:60,max:60}:b.id==='fire'?{burn:11}:{});
+  noise(x+.5,y+.5,2);
+  if (b.id==='fire') log('The fire catches. It\'s the first warm thing in days. It will also be seen.', 'cozy');
+  renderBuildBar();
+}
+
+// ---------------------------------------------------------------------
+//  Camp (the cozy half)
+// ---------------------------------------------------------------------
+const FLAVOR = {
+  cook:['Beans, wild garlic and the last of the pepper. Best meal in weeks.','The smell of frying onions almost makes it feel like a normal camping trip.','You burn the toast. You eat it anyway, smiling.'],
+  fire:['The fire pops. Somewhere far off, an owl.','Without city lights, the Milky Way is absurdly bright.','You watch embers drift up and forget, for a moment, what\'s out there.'],
+  guitar:['Three chords and the truth. Your voice cracks on the chorus. Worth it.','You play the song your dad used to hum on road trips.','The music carries a long way in the dark. Too far, maybe.'],
+  read:['A water-stained paperback mystery. The butler did it. Of course.','You read a dog-eared field guide to birds you\'ll probably never see.','An old road atlas. You trace a route to the coast with your finger.'],
+};
+function openCamp(){
+  const h=S.min/60%24, evening = h>=16||h<6;
+  const fire = nearFire(3.5), stove = S.van.up.has('stove'), atVan=nearVan(2.6);
+  const mult = S.van.up.has('lights')?1.5:1;
+  const acts = [
+    {id:'cook',   name:'Cook a hot meal', hrs:1, cost:'1 food', ok:(fire||(stove&&atVan)) && (S.pack.food+S.van.food)>0, why:'Needs a campfire (or the camp stove) and food', desc:'+40 hunger, +10 comfort'},
+    {id:'fire',   name:'Sit by the fire', hrs:1, ok:fire, why:'Needs a lit campfire', desc:`+${Math.round(14*mult)} comfort`},
+    {id:'guitar', name:'Play guitar',     hrs:1, ok:fire||atVan, why:'Sit at the van or fire', desc:`+${Math.round(26*mult)} comfort · LOUD (noise radius 11)`},
+    {id:'read',   name:'Read in the van', hrs:1, ok:atVan, why:'Be at the van', desc:`+${Math.round(8*mult)} comfort, quiet`},
+    {id:'tinker', name:'Tinker on the van', hrs:2, ok:atVan, why:'Be at the van', desc:'Install upgrades (2h)'},
+    {id:'sleep',  name:'Sleep in the van', hrs:0, ok:atVan && evening, why:evening?'Be at the van':'Only in the evening', desc:'Skip to dawn. Rest quality = comfort.'},
+  ];
+  modal(`<h2>${evening?'Camp':'Rest stop'}</h2>
+    <p class="mute">Comfort <b style="color:var(--ember2)">${Math.round(S.comfort)}</b> — at dawn, ≥60 = <b>well rested</b> (+15% speed, HP regen), &lt;25 = <b>restless</b>. Sleep heals 10 + 35% of comfort.</p>
+    <div class="opts">${acts.map(a=>`<button class="opt" data-a="${a.id}" ${a.ok?'':'disabled'}><span><b>${a.name}</b><small>${a.ok?a.desc:a.why}</small></span><span class="cost">${a.hrs?a.hrs+'h':''}${a.cost?' · '+a.cost:''}</span></button>`).join('')}</div>
+    <div class="row"><button data-a="close">Close <kbd>Esc</kbd></button></div>`,
+  (id)=>{
+    if (id==='close') return closeModal();
+    const mult = S.van.up.has('lights')?1.5:1;
+    closeModal();
+    if (id==='tinker') return openUpgrades();
+    if (id==='sleep') return sleep();
+    const run = (hrs, fn)=>{ S.activity={id,left:hrs,done:fn}; S.ts=6; P.path=[]; };
+    if (id==='cook'){ spend({food:1}); run(1,()=>{ S.hunger=clamp(S.hunger+40,0,100); addComfort(10); log(pick(FLAVOR.cook),'cozy'); }); }
+    if (id==='fire') run(1,()=>{ addComfort(14*mult); log(pick(FLAVOR.fire),'cozy'); });
+    if (id==='guitar'){ noise(P.x,P.y,11); run(1,()=>{ addComfort(26*mult); log(pick(FLAVOR.guitar),'cozy'); }); }
+    if (id==='read') run(1,()=>{ addComfort(8*mult); log(pick(FLAVOR.read),'cozy'); });
+  });
+}
+function addComfort(n){ S.comfort=clamp(S.comfort+n,0,100); floatText(P.x,P.y,`+${Math.round(n)} comfort`,'#ffd27a'); }
+function sleep(){
+  let bonus = S.campBonus + (S.van.up.has('awning')?12:0);
+  if (bonus) addComfort(bonus);
+  S.sleeping=true; P.hidden=true; P.path=[]; P.act=null; S.ts=14; S.nightsCamped++;
+  log('You crawl into the van and pull the blanket up.','cozy');
+}
+function openUpgrades(){
+  modal(`<h2>Tinker on the van</h2><p class="mute">Each upgrade takes 2 hours. Van holds ${vanUsed()}/${S.van.cap} · Fuel ${S.van.fuel}/${S.van.fuelCap} L</p>
+    <div class="opts">${UPGRADES.map(u=>{ const own=S.van.up.has(u.id), ok=!own&&have(u.cost);
+      return `<button class="opt" data-a="${u.id}" ${ok?'':'disabled'}><span><b>${u.name}${own?' ✓':''}</b><small>${u.desc}</small></span><span class="cost">${own?'installed':costStr(u.cost)}</span></button>`; }).join('')}</div>
+    <div class="row"><button data-a="close">Close</button></div>`,
+  (id)=>{
+    if (id==='close') return closeModal();
+    const u=UPGRADES.find(u=>u.id===id); if(!u) return;
+    spend(u.cost); closeModal();
+    S.activity={id:'tinker',left:2,done:()=>{
+      S.van.up.add(u.id);
+      if (u.id==='rack') S.van.cap+=15; if (u.id==='jerry') S.van.fuelCap+=20; if (u.id==='pack') S.packCap=12;
+      log(`Installed: ${u.name}.`,'good'); addComfort(5);
+    }}; S.ts=6;
+  });
+}
+function openVanMenu(){
+  const h=S.min/60%24;
+  modal(`<h2>The van</h2>
+    <p>Fuel <b>${S.van.fuel}/${S.van.fuelCap} L</b> · Food <b>${S.van.food}</b> · Scrap <b>${S.van.scrap}</b> · Wood <b>${S.van.wood}</b> <span class="mute">(storage ${vanUsed()}/${S.van.cap})</span></p>
+    <p class="mute">${S.van.up.size?'Upgrades: '+[...S.van.up].map(id=>UPGRADES.find(u=>u.id===id).name).join(', '):'No upgrades yet.'}</p>
+    <div class="opts">
+      <button class="opt" data-a="camp"><span><b>Camp activities</b><small>Cook, rest, play, tinker, sleep</small></span></button>
+      <button class="opt" data-a="build"><span><b>Build around the van</b><small>Barricades, campfire, traps</small></span></button>
+      <button class="opt" data-a="drive" ${h>=6&&h<17?'':'disabled'}><span><b>Drive on</b><small>${h>=6&&h<17?'Pick the next stop on the road':'Too dark to drive. Only between 06:00 and 17:00.'}</small></span></button>
+    </div><div class="row"><button data-a="close">Close</button></div>`,
+  (id)=>{ closeModal(); if(id==='camp') openCamp(); if(id==='build'){ if(S.mode!=='build') toggleBuild(); } if(id==='drive') openTravel(); });
+}
+
+// ---------------------------------------------------------------------
+//  Travel (the strategic layer)
+// ---------------------------------------------------------------------
+function fuelCost(base){ return Math.ceil(base*(S.van.up.has('engine')?.7:1)); }
+function genOptions(){
+  if (S.stop+1>=STOPS_TO_GOAL) return [{type:'goal', name:'The Lighthouse', fuel:fuelCost(12)}];
+  const types = ['town','gas','farm','forest','lake'];
+  const out=[]; const used=new Set();
+  while(out.length<3){ const t=pick(types); if(used.has(t))continue; used.add(t); out.push({type:t, name:pick(PLACE_A)+pick(PLACE_B), fuel:fuelCost(RI(6,13))}); }
+  return out;
+}
+function openTravel(){
+  if (!nearVan(2.6)){ log('Walk back to the van first.','warn'); return; }
+  const h=S.min/60%24; if (!(h>=6&&h<17)){ log('Too dark to drive. Wait for morning.','warn'); return; }
+  unload();
+  S.opts = S.opts && S.opts.stop===S.stop ? S.opts : {stop:S.stop, list:genOptions()};
+  const fences = M.objs.filter(o=>o.type==='fence'||o.type==='fire'||o.type==='trap').length;
+  modal(`<h2>The road</h2>
+    <p>${'●'.repeat(S.stop+1)}${'○'.repeat(Math.max(0,STOPS_TO_GOAL-S.stop-1))} 🗼 <span class="mute">Stop ${S.stop+1} of ${STOPS_TO_GOAL+1} — the radio said people are at the lighthouse.</span></p>
+    <p class="mute">Tank: <b style="color:var(--ink)">${S.van.fuel} L</b>. Driving takes 2 hours.${fences?` You'll leave behind ${fences} thing${fences>1?'s':''} you built${S.van.up.has('kit')?' (barricade wood is packed up)':''}.`:''}</p>
+    <div class="opts">${S.opts.list.map((o,i)=>`<button class="opt" data-a="${i}" ${S.van.fuel>=o.fuel?'':'disabled'}><span><b>${o.name} — ${LOC[o.type].name}</b><small>${LOC[o.type].desc} · Danger ${'▲'.repeat(Math.ceil((LOC[o.type].z[1]+S.stop/2)/3))}</small></span><span class="cost">${o.fuel} L</span></button>`).join('')}</div>
+    <div class="row"><button data-a="stay">Stay here another day</button></div>`,
+  (id)=>{
+    closeModal(); if (id==='stay') return;
+    const o=S.opts.list[+id];
+    if (S.van.up.has('kit')){ const n=M.objs.filter(o=>o.type==='fence').length; const w=Math.min(n*2, S.van.cap-vanUsed()); S.van.wood+=w; if(w) log(`Packed up barricades (+${w} wood).`,'good'); }
+    S.van.fuel-=o.fuel; S.stop++; S.min+=120; S.lastHour=hourOf(); S.opts=null;
+    loadLocation(o.type,o.name);
+    log(`Arrived at ${o.name} — ${LOC[o.type].name}.`,'good');
+    if (o.type==='goal') setTimeout(win, 2500);
+  });
+}
+
+// ---------------------------------------------------------------------
+//  End states, modal, intro
+// ---------------------------------------------------------------------
+function die(){
+  S.mode='dead'; S.hp=0;
+  modal(`<h2>The road ends here</h2><p>You survived <b>${S.day}</b> day${S.day>1?'s':''}, reached stop <b>${S.stop+1}</b>, put down <b>${S.kills}</b> of the dead and camped <b>${S.nightsCamped}</b> night${S.nightsCamped===1?'':'s'}.</p>
+  <p class="mute">${S.hunger<=0?'Hunger wore you down.':'They got you.'}</p><div class="row"><button data-a="again">Try again</button></div>`, ()=>{ closeModal(); newGame(); });
+}
+function win(){
+  S.mode='won';
+  modal(`<h2>The Lighthouse</h2><p>Smoke from a chimney. A hand-painted sign: <i>“Campers welcome.”</i></p>
+  <p>Made it in <b>${S.day}</b> days with <b>${S.van.up.size}</b> van upgrades and <b>${S.kills}</b> kills.</p><div class="row"><button data-a="again">Drive again</button></div>`, ()=>{ closeModal(); newGame(); });
+}
+let modalCb=null;
+function modal(html, cb){
+  const m=document.getElementById('modal'), c=document.getElementById('mcard');
+  c.innerHTML=html; m.style.display='flex'; modalCb=cb; if (S.mode==='play'||S.mode==='build') S.paused=true;
+  c.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>cb&&cb(b.dataset.a));
+}
+function closeModal(){ document.getElementById('modal').style.display='none'; S.paused=false; modalCb=null; }
+function showIntro(){
+  modal(`<h2>Ember Road <span class="mute" style="font-size:13px;font-weight:400">· grey-box prototype</span></h2>
+  <p>The world ended. You have a camper van, a guitar, and a long road to the coast.</p>
+  <h3>Days are tense</h3>
+  <ul class="k"><li><b>Click</b> to move · <b>click</b> crates, cars, pumps, trees, bushes to scavenge (it makes noise)</li>
+  <li>Zombies have <b>vision cones</b>. In the <b>striped</b> far zone, <b>crouching (C)</b> keeps you hidden. Crouch in <b>tall grass</b> to vanish.</li>
+  <li>Click an <b>unaware</b> zombie for a silent takedown. Fighting an alert one is loud and hurts.</li>
+  <li>Your backpack is small. Walk loot back to the <b>van</b> (click it) to unload.</li></ul>
+  <h3>Nights are cozy — if you earn it</h3>
+  <ul class="k"><li>At dusk, <b>build (B)</b> barricades, a campfire, traps around the van.</li>
+  <li>A campfire lets you cook and relax — but the dead are drawn to light. Guitar is lovely and <i>loud</i>.</li>
+  <li><b>Comfort</b> decides how well you rest, which sets tomorrow's speed and healing.</li></ul>
+  <h3>The road</h3>
+  <ul class="k"><li>Each morning: <b>stay</b> (keep your camp, but loot runs dry) or <b>drive on (T)</b> (fresh loot, costs fuel, camp left behind).</li>
+  <li>Reach the lighthouse in ${STOPS_TO_GOAL} stops. Don't run out of fuel or food.</li></ul>
+  <p class="mute">Camera: drag with right mouse / WASD to pan · wheel to zoom · Space to re-center · F speeds up time.</p>
+  <div class="row"><button data-a="go">Start driving</button></div>`, ()=>{ closeModal(); initAudio(); });
+}
+function showHelp(){ showIntro(); }
+
+// ---------------------------------------------------------------------
+//  Log & HUD
+// ---------------------------------------------------------------------
+function log(msg, cls=''){
+  const el=document.getElementById('log'); const d=document.createElement('div'); d.textContent=msg; if(cls) d.className=cls;
+  el.appendChild(d); while(el.children.length>6) el.firstChild.remove(); setTimeout(()=>d.remove(),9000);
+}
+const bar=(v,col)=>`<div class="bar"><i style="width:${clamp(v,0,100)}%;background:${col}"></i></div>`;
+let hudT=0;
+function hud(){
+  const ph=phaseName();
+  document.getElementById('clock').innerHTML = `<div class="big">Day ${S.day} · ${clockStr()} <span class="badge">${ph}</span>${S.ts>1?`<span class="badge">${S.ts}×</span>`:''}</div><div class="sub">${M.name} — ${LOC[M.type].name}</div>`;
+  const restBadge = S.rest==='rested'?'<span class="badge" style="color:var(--ok)">rested</span>':S.rest==='restless'?'<span class="badge" style="color:var(--danger)">restless</span>':'';
+  document.getElementById('stats').innerHTML =
+    `<span>Health</span>${bar(S.hp,'#e5534b')}<span>${Math.round(S.hp)}</span>`+
+    `<span>Hunger</span>${bar(S.hunger,'#d9a441')}<span>${Math.round(S.hunger)}</span>`+
+    `<span>Comfort</span>${bar(S.comfort,'#ff9a4d')}<span>${Math.round(S.comfort)}${restBadge}</span>`;
+  document.getElementById('res').innerHTML =
+    `<div><span>Fuel</span> <b>${S.van.fuel}</b><span>/${S.van.fuelCap}L</span></div><div><span>Food</span> <b>${S.van.food}</b></div><div><span>Scrap</span> <b>${S.van.scrap}</b></div><div><span>Wood</span> <b>${S.van.wood}</b></div><div><span>Van</span> ${vanUsed()}/${S.van.cap}</div>`;
+  const items=Object.entries(S.pack).filter(([,v])=>v).map(([k,v])=>`${v} ${k}`).join(', ');
+  document.getElementById('pack').innerHTML = `🎒 ${packUsed()}/${S.packCap}${items?' — '+items:''}`;
+  const h=S.min/60%24;
+  document.getElementById('bCrouch').classList.toggle('on',S.crouch);
+  document.getElementById('bBuild').classList.toggle('on',S.mode==='build');
+  document.getElementById('bDrive').disabled = !(h>=6&&h<17);
+  document.getElementById('bSpeed').innerHTML = `${S.speedMul}×<kbd>F</kbd>`;
+  let hint='';
+  if (S.sleeping) hint='Sleeping… (click to wake)';
+  else if (S.activity) hint=`${({cook:'Cooking',fire:'Sitting by the fire',guitar:'Playing guitar',read:'Reading',tinker:'Tinkering'})[S.activity.id]}… (click anywhere to stop)`;
+  else if (S.mode==='build') hint=`Building: ${BUILD.find(b=>b.id===S.build).name} — click near the van · 1/2/3 to switch · Esc when done`;
+  else if (h>=17 && h<20.5 && !nearVan(3)) hint='Dusk — head back to the van';
+  else if (h>=17 && h<20.5) hint='Make camp: B to build, R for camp activities';
+  else if (isNight() && !nearVan(3)) hint='It\'s dark out here. Get back to the van.';
+  else if (packUsed()>=S.packCap) hint='Backpack full — click the van to unload';
+  document.getElementById('hint').textContent=hint;
+}
+
+// ---------------------------------------------------------------------
+//  Rendering
+// ---------------------------------------------------------------------
+const isoX=(x,y)=>(x-y)*HW, isoY=(x,y)=>(x+y)*HH;
+let shake=0;
+function centerCam(snap){ const tx=isoX(P.x,P.y), ty=isoY(P.x,P.y); if(snap||!cam){ cam=Object.assign(cam||{z:1.15},{x:tx,y:ty,follow:true}); } }
+function shadeCol(rgb, k, dk){ return `rgb(${rgb.map(v=>clamp(Math.round(v*k),0,255)).join(',')})`; }
+function poly(pts, fill, stroke){ ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath(); if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.stroke();} }
+function tileDiamond(x,y){ return [[isoX(x,y),isoY(x,y)],[isoX(x+1,y),isoY(x+1,y)],[isoX(x+1,y+1),isoY(x+1,y+1)],[isoX(x,y+1),isoY(x,y+1)]]; }
+function box(x,y,w,h,z,col,alpha=1,z0=0){
+  // col = [r,g,b]; draws an iso box occupying grid rect, height z px
+  const P_=(gx,gy,hz)=>[isoX(gx,gy),isoY(gx,gy)-hz];
+  ctx.globalAlpha=alpha;
+  poly([P_(x,y+h,z0),P_(x+w,y+h,z0),P_(x+w,y+h,z),P_(x,y+h,z)], shadeCol(col,.62));
+  poly([P_(x+w,y,z0),P_(x+w,y+h,z0),P_(x+w,y+h,z),P_(x+w,y,z)], shadeCol(col,.8));
+  poly([P_(x,y,z),P_(x+w,y,z),P_(x+w,y+h,z),P_(x,y+h,z)], shadeCol(col,1.05));
+  ctx.globalAlpha=1;
+}
+const hex = h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+let stripe=null;
+function stripePattern(col){
+  const c=document.createElement('canvas'); c.width=c.height=10; const g=c.getContext('2d');
+  g.strokeStyle=col; g.lineWidth=3; g.beginPath(); for(let i=-10;i<20;i+=7){ g.moveTo(i,0); g.lineTo(i+10,10);} g.stroke();
+  return ctx.createPattern(c,'repeat');
+}
+const stripes={};
+function cone(z){
+  const R0=visionRange(z), n=22, near=R0*.55;
+  const ptsNear=[[isoX(z.x,z.y),isoY(z.x,z.y)]], ptsFar=[];
+  const farInner=[];
+  for (let i=0;i<=n;i++){
+    const a=z.dir-CONE+2*CONE*i/n; let r=0;
+    for (r=0;r<R0;r+=.2){ const x=z.x+Math.cos(a)*r, y=z.y+Math.sin(a)*r; if(blocksSight(Math.floor(x),Math.floor(y)) && !(Math.floor(x)===Math.floor(z.x)&&Math.floor(y)===Math.floor(z.y))) break; }
+    const rn=Math.min(r,near);
+    ptsNear.push([isoX(z.x+Math.cos(a)*rn,z.y+Math.sin(a)*rn),isoY(z.x+Math.cos(a)*rn,z.y+Math.sin(a)*rn)]);
+    farInner.push([isoX(z.x+Math.cos(a)*rn,z.y+Math.sin(a)*rn),isoY(z.x+Math.cos(a)*rn,z.y+Math.sin(a)*rn)]);
+    ptsFar.push([isoX(z.x+Math.cos(a)*r,z.y+Math.sin(a)*r),isoY(z.x+Math.cos(a)*r,z.y+Math.sin(a)*r)]);
+  }
+  const col = z.state==='chase'?'255,80,80':z.sus>.05||z.state==='investigate'?'255,210,90':'235,240,255';
+  const a = isNight()? .22 : .2;
+  poly(ptsNear, `rgba(${col},${a+.08})`);
+  const far=[...farInner, ...ptsFar.slice().reverse()];
+  if (!stripes[col]) stripes[col]=stripePattern(`rgba(${col},.5)`);
+  poly(far, stripes[col]);
+  poly(far, `rgba(${col},.06)`);
+}
+function drawTree(o, alpha){
+  const cx=isoX(o.x+.5,o.y+.5), cy=isoY(o.x+.5,o.y+.5);
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(cx,cy,18,9,0,0,7); ctx.fill();
+  ctx.fillStyle='#5a3e28'; ctx.fillRect(cx-3,cy-14,6,14);
+  const g = o.seed*30;
+  const tiers=[[24,-14,-40],[19,-30,-56],[13,-46,-70]];
+  tiers.forEach(([w,b,t],i)=>{ ctx.fillStyle=`rgb(${38+g*.3+i*8},${78+g+i*10},${52+i*6})`; ctx.beginPath(); ctx.moveTo(cx-w,cy+b); ctx.lineTo(cx,cy+t-o.seed*8); ctx.lineTo(cx+w,cy+b); ctx.closePath(); ctx.fill(); });
+  ctx.globalAlpha=1;
+}
+function drawChar(x,y,opts){
+  const cx=isoX(x,y), cy=isoY(x,y);
+  ctx.globalAlpha=opts.alpha??1;
+  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(cx,cy,9,4.5,0,0,7); ctx.fill();
+  const hgt = opts.sit?14:opts.crouch?17:24;
+  const bob = opts.bob? Math.sin(opts.bob)*1.5 : 0;
+  const lean = opts.lean||0;
+  ctx.fillStyle=opts.legs; ctx.fillRect(cx-5,cy-hgt*.45,10,hgt*.45);
+  ctx.fillStyle=opts.body; ctx.beginPath(); ctx.roundRect(cx-7+lean,cy-hgt-2+bob,14,hgt*.62,4); ctx.fill();
+  ctx.fillStyle=opts.head; ctx.beginPath(); ctx.arc(cx+lean*1.3+Math.cos(opts.dir)*1.5,cy-hgt-6+bob,5.5,0,7); ctx.fill();
+  if (opts.hat){ ctx.fillStyle=opts.hat; ctx.beginPath(); ctx.arc(cx+lean*1.3+Math.cos(opts.dir)*1.5,cy-hgt-8+bob,5.5,Math.PI,0); ctx.fill(); }
+  // facing tick
+  const fx=isoX(x+Math.cos(opts.dir)*.45,y+Math.sin(opts.dir)*.45), fy=isoY(x+Math.cos(opts.dir)*.45,y+Math.sin(opts.dir)*.45);
+  ctx.strokeStyle=opts.tick||'rgba(255,255,255,.35)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(fx,fy); ctx.stroke();
+  ctx.globalAlpha=1;
+}
+function drawVan(o){
+  const up=S.van.up, x=o.x,y=o.y;
+  const cream=[226,214,186], teal=[78,150,150];
+  // wheels
+  ctx.fillStyle='#1d1a1c'; for (const [gx,gy] of [[x+.35,y+1],[x+1.65,y+1],[x+2,y+.25]]){ ctx.beginPath(); ctx.ellipse(isoX(gx,gy),isoY(gx,gy)-4,6,5,0,0,7); ctx.fill(); }
+  box(x+.05,y+.08,1.9,.84,10,[60,58,58],1,4);
+  box(x+.05,y+.08,1.9,.84,22,teal,1,10);
+  box(x+.05,y+.08,1.9,.84,40,cream,1,22);
+  // windows
+  const W=(gx,z0,z1,w)=>poly([[isoX(gx,y+.92),isoY(gx,y+.92)-z0],[isoX(gx+w,y+.92),isoY(gx+w,y+.92)-z0],[isoX(gx+w,y+.92),isoY(gx+w,y+.92)-z1],[isoX(gx,y+.92),isoY(gx,y+.92)-z1]], darkness()>.3?'#ffcf7a':'#3c5560');
+  W(x+.25,25,36,.45); W(x+.85,25,36,.45);
+  poly([[isoX(x+1.95,y+.15),isoY(x+1.95,y+.15)-25],[isoX(x+1.95,y+.85),isoY(x+1.95,y+.85)-25],[isoX(x+1.95,y+.85),isoY(x+1.95,y+.85)-37],[isoX(x+1.95,y+.15),isoY(x+1.95,y+.15)-37]], '#3c5560');
+  if (up.has('rack')){ box(x+.25,y+.2,1.4,.6,46,[70,62,52],1,42); box(x+.4,y+.3,.5,.4,52,[150,110,70],1,46); }
+  if (up.has('jerry')) box(x-.2,y+.3,.2,.4,22,[180,50,40]);
+  if (up.has('awning')){
+    poly([[isoX(x+.15,y+.92),isoY(x+.15,y+.92)-40],[isoX(x+1.6,y+.92),isoY(x+1.6,y+.92)-40],[isoX(x+1.6,y+1.9),isoY(x+1.6,y+1.9)-30],[isoX(x+.15,y+1.9),isoY(x+.15,y+1.9)-30]], 'rgba(214,110,70,.92)');
+    for (let i=0;i<5;i++){ const gx=x+.15+i*.29; ctx.strokeStyle='rgba(255,240,220,.6)'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(isoX(gx,y+.92),isoY(gx,y+.92)-40); ctx.lineTo(isoX(gx,y+1.9),isoY(gx,y+1.9)-30); ctx.stroke(); }
+  }
+  if (up.has('lights')){
+    const t=performance.now()/600;
+    for (let i=0;i<9;i++){ const gx=x+.1+i*.2, sag=Math.sin(i/8*Math.PI)*4; ctx.fillStyle=`hsl(${40+i*15},90%,${darkness()>.3?70+Math.sin(t+i)*10:55}%)`; ctx.beginPath(); ctx.arc(isoX(gx,y+.92),isoY(gx,y+.92)-41+sag,2.2,0,7); ctx.fill(); }
+  }
+  if (up.has('stove')) box(x+1.2,y+1.15,.35,.3,10,[90,90,95]);
+}
+function drawObj(o, alpha){
+  const t=o.type, x=o.x, y=o.y;
+  if (t==='wall') return box(x,y,1,1,34,hex(M.type==='farm'?'#8a5a44':'#8c8378'),alpha);
+  if (t==='tree') return drawTree(o, alpha);
+  if (t==='stump') return box(x+.35,y+.35,.3,.3,5,[110,80,52]);
+  if (t==='rock') return box(x+.15,y+.2,.7,.6,10,[120,120,118]);
+  if (t==='crate'){ box(x+.2,y+.2,.6,.6,o.searched?9:15,o.searched?[90,70,50]:[150,112,64]); return; }
+  if (t==='shelf'){ box(x+.1,y+.35,.8,.3,26,o.searched?[80,70,64]:[120,96,80]); return; }
+  if (t==='pump'){ box(x+.3,y+.3,.4,.4,30,o.searched?[110,60,60]:[200,60,50]); box(x+.3,y+.3,.4,.4,34,[230,230,220],1,30); return; }
+  if (t==='car'){ const c=hex(o.col||'#5a5a5a'); box(x+.05,y+.1,.9,.8,12,o.searched?c.map(v=>v*.7):c,1,3); box(x+.25,y+.2,.5,.6,21,[60,80,90],1,12); return; }
+  if (t==='crop'){ const cx=isoX(x+.5,y+.5), cy=isoY(x+.5,y+.5); ctx.fillStyle='#6f9a3a'; for(let i=0;i<5;i++){ ctx.beginPath(); ctx.ellipse(cx-10+i*5,cy-4-(i%2)*3,3,7,0,0,7); ctx.fill(); } ctx.fillStyle='#e0a040'; ctx.beginPath(); ctx.arc(cx,cy-8,3,0,7); ctx.fill(); return; }
+  if (t==='bush'){ const cx=isoX(x+.5,y+.5), cy=isoY(x+.5,y+.5); ctx.fillStyle='#3f6a3a'; ctx.beginPath(); ctx.ellipse(cx,cy-7,14,9,0,0,7); ctx.fill(); if(!o.bare){ ctx.fillStyle='#b8344a'; for(let i=0;i<6;i++){ ctx.beginPath(); ctx.arc(cx-8+((i*7)%16),cy-11+((i*5)%8),2,0,7); ctx.fill(); } } return; }
+  if (t==='fence'){ const k=o.hp/o.max; box(x+.05,y+.05,.9,.9,20*Math.max(.4,k),[150-40*(1-k),112,70]);
+    const cx=isoX(x+.5,y+.5), cy=isoY(x+.5,y+.5); ctx.strokeStyle='rgba(60,40,24,.7)'; ctx.lineWidth=1.5; for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(cx-20,cy-10+i*5-6); ctx.lineTo(cx+20,cy-10-i*5-6); ctx.stroke(); }
+    if (k<1){ ctx.fillStyle='#000a'; ctx.fillRect(cx-12,cy-34,24,4); ctx.fillStyle=k>.5?'#8fd18b':'#ff5d5d'; ctx.fillRect(cx-12,cy-34,24*k,4); } return; }
+  if (t==='trap'){ const cx=isoX(x+.5,y+.5), cy=isoY(x+.5,y+.5); ctx.fillStyle='#9a9a98'; for(let i=0;i<6;i++){ const px=cx-12+(i%3)*12, py=cy-3+Math.floor(i/3)*6-3; ctx.beginPath(); ctx.moveTo(px-3,py); ctx.lineTo(px,py-9); ctx.lineTo(px+3,py); ctx.fill(); } return; }
+  if (t==='fire'){ const cx=isoX(x+.5,y+.5), cy=isoY(x+.5,y+.5);
+    ctx.fillStyle='#6a6a68'; for(let i=0;i<8;i++){ const a=i/8*6.28; ctx.beginPath(); ctx.ellipse(cx+Math.cos(a)*14,cy+Math.sin(a)*7,4,3,0,0,7); ctx.fill(); }
+    ctx.fillStyle='#4a3020'; ctx.fillRect(cx-9,cy-3,18,4);
+    if (o.burn>0){ const tt=performance.now()/120; for(let i=0;i<3;i++){ const h=16+Math.sin(tt+i*2)*5; ctx.fillStyle=['#ff7b2e','#ffb347','#ffe9a0'][i]; ctx.beginPath(); ctx.moveTo(cx-8+i*3,cy); ctx.quadraticCurveTo(cx-2+Math.sin(tt*1.3+i)*3,cy-h-(2-i)*6,cx+1-i,cy-h*.8-(2-i)*6); ctx.quadraticCurveTo(cx+4,cy-h*.5,cx+8-i*3,cy); ctx.fill(); } }
+    return; }
+  if (t==='van') return drawVan(o);
+}
+function drawGround(x0,x1,y0,y1){
+  const tt=performance.now()/900;
+  for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++){
+    const t=M.tiles[idx(x,y)], s=M.shade[idx(x,y)];
+    let c=TILE_COL[t];
+    if (t===T.WATER){ const w=Math.sin(tt+x*.6+y*.4)*6; c=[c[0]+w,c[1]+w,c[2]+w]; }
+    poly(tileDiamond(x,y), shadeCol(c, 1+s*.05));
+    if (t===T.TALL){ const cx=isoX(x+.5,y+.5), cy=isoY(x+.5,y+.5); ctx.strokeStyle='rgba(120,160,80,.8)'; ctx.lineWidth=1.3; ctx.beginPath(); for(let i=0;i<6;i++){ const px=cx-14+i*5.5+s*2, py=cy-2+(i%2)*4; ctx.moveTo(px,py); ctx.lineTo(px+Math.sin(tt*2+i+x)*2,py-10-(i%3)*2); } ctx.stroke(); }
+    if (t===T.ROAD && y===M.van.y && x%3===0){ const a=isoX(x+.2,y+1), b=isoY(x+.2,y+1), a2=isoX(x+.9,y+1), b2=isoY(x+.9,y+1); ctx.strokeStyle='rgba(230,210,120,.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(a2,b2); ctx.stroke(); }
+    if (t===T.FIELD && (x+y)%2===0){ poly(tileDiamond(x+.1,y+.1).map(([a,b])=>[a,b]),'rgba(90,70,40,.15)'); }
+  }
+}
+function render(){
+  const z=cam.z;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.fillStyle='#0d0b10'; ctx.fillRect(0,0,CW,CH);
+  const sx = shake? R(-shake,shake):0, sy = shake? R(-shake,shake):0; shake=Math.max(0,shake-.5);
+  ctx.setTransform(DPR*z,0,0,DPR*z, DPR*(CW/2 - cam.x*z + sx), DPR*(CH/2 - cam.y*z + sy));
+  // visible tile range (generous)
+  const inv=(px,py)=>{ const ix=(px-CW/2)/z+cam.x, iy=(py-CH/2)/z+cam.y; return [ (iy/HH+ix/HW)/2, (iy/HH-ix/HW)/2 ]; };
+  const cs=[inv(0,0),inv(CW,0),inv(0,CH),inv(CW,CH)];
+  const x0=clamp(Math.floor(Math.min(...cs.map(c=>c[0])))-2,0,M.w-1), x1=clamp(Math.ceil(Math.max(...cs.map(c=>c[0])))+2,0,M.w-1);
+  const y0=clamp(Math.floor(Math.min(...cs.map(c=>c[1])))-2,0,M.h-1), y1=clamp(Math.ceil(Math.max(...cs.map(c=>c[1])))+4,0,M.h-1);
+  drawGround(x0,x1,y0,y1);
+  // decals
+  for (const d of M.decals){ ctx.fillStyle='rgba(90,20,20,.55)'; ctx.beginPath(); ctx.ellipse(isoX(d.x,d.y),isoY(d.x,d.y),d.r*HW,d.r*HH,0,0,7); ctx.fill(); }
+  // vision cones
+  for (const zz of M.zs){ if (dist(zz.x,zz.y,P.x,P.y)<22) cone(zz); }
+  // build ghost
+  if (S.mode==='build' && hover.tile){
+    ctx.globalAlpha=.25; for (let yy=-8;yy<=8;yy++) for (let xx=-8;xx<=9;xx++){ const gx=M.van.x+xx, gy=M.van.y+yy; if(inb(gx,gy)&&dist(gx+.5,gy+.5,M.van.x+1,M.van.y+.5)<=7.5) poly(tileDiamond(gx,gy),null,'rgba(255,210,120,.5)'); } ctx.globalAlpha=1;
+    const {x,y}=hover.tile; poly(tileDiamond(x,y), canPlace(x,y)?'rgba(143,209,139,.45)':'rgba(255,93,93,.45)');
+  }
+  // path
+  if (P.path.length){ ctx.fillStyle='rgba(255,210,122,.6)'; for (const n of P.path){ ctx.beginPath(); ctx.ellipse(isoX(n.x+.5,n.y+.5),isoY(n.x+.5,n.y+.5),3,1.5,0,0,7); ctx.fill(); } }
+  if (M.marker && (M.marker.life-=1/60)>0){ ctx.strokeStyle=`rgba(255,210,122,${M.marker.life})`; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(isoX(M.marker.x,M.marker.y),isoY(M.marker.x,M.marker.y),14*(1.4-M.marker.life*.5),7*(1.4-M.marker.life*.5),0,0,7); ctx.stroke(); }
+  // hover highlight
+  if (hover.obj && S.mode!=='build'){ const o=hover.obj; ctx.lineWidth=2; poly([[isoX(o.x,o.y),isoY(o.x,o.y)],[isoX(o.x+o.w,o.y),isoY(o.x+o.w,o.y)],[isoX(o.x+o.w,o.y+o.h),isoY(o.x+o.w,o.y+o.h)],[isoX(o.x,o.y+o.h),isoY(o.x,o.y+o.h)]],'rgba(255,210,122,.18)','rgba(255,210,122,.8)'); }
+  // depth-sorted drawables
+  const list=[];
+  const pd=P.x+P.y;
+  for (const o of M.objs){ if (o.x+o.w<x0-1||o.x>x1+1||o.y+o.h<y0-1||o.y>y1+1) continue; list.push({d:o.x+o.y+(o.w+o.h)/2, o}); }
+  for (const zz of M.zs) list.push({d:zz.x+zz.y, z:zz});
+  if (!P.hidden) list.push({d:pd, p:1});
+  list.sort((a,b)=>a.d-b.d);
+  for (const e of list){
+    if (e.o){
+      let alpha=1;
+      if ((e.o.type==='wall'||e.o.type==='tree') && e.d>pd && e.d-pd<3.2 && Math.abs((e.o.x-e.o.y)-(P.x-P.y))<2.2) alpha=.35;
+      drawObj(e.o, alpha);
+    } else if (e.z){
+      const zz=e.z, hov = hover.z===zz;
+      drawChar(zz.x,zz.y,{dir:zz.dir,body:zz.state==='chase'?'#6d4a4a':'#5b6a52',legs:'#3d3a40',head:'#8fa088',bob:zz.bob,lean:Math.cos(zz.bob*.5)*1.5,tick:zz.state==='chase'?'#ff5d5d':'rgba(255,255,255,.3)'});
+      if (zz.sus>.02 && zz.state!=='chase'){ const cx=isoX(zz.x,zz.y), cy=isoY(zz.x,zz.y)-44; ctx.fillStyle='#000a'; ctx.fillRect(cx-10,cy,20,4); ctx.fillStyle='#ffd25a'; ctx.fillRect(cx-10,cy,20*zz.sus,4); }
+      if (zz.state==='chase'){ ctx.fillStyle='#ff5d5d'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.fillText('!',isoX(zz.x,zz.y),isoY(zz.x,zz.y)-42); }
+      if (hov){ ctx.strokeStyle= zz.state==='chase'?'#ff5d5d':'#8fd18b'; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(isoX(zz.x,zz.y),isoY(zz.x,zz.y),13,6.5,0,0,7); ctx.stroke(); }
+    } else {
+      const hidden = S.crouch && inTall();
+      drawChar(P.x,P.y,{dir:P.dir,body:'#d9733a',legs:'#33405a',head:'#e8c39e',hat:'#2f5d62',crouch:S.crouch,sit:P.sit,alpha:hidden?.5:1,lean:P.anim>0?Math.cos(P.dir)*5:0,tick:'#ffd27a'});
+      if (P.act && P.act.kind==='work'){ const cx=isoX(P.x,P.y), cy=isoY(P.x,P.y)-46; ctx.fillStyle='#000b'; ctx.fillRect(cx-16,cy,32,5); ctx.fillStyle='#ffd27a'; ctx.fillRect(cx-16,cy,32*P.act.t/P.act.dur,5); }
+    }
+  }
+  // particles
+  for (const p of M.parts){
+    if (p.ring){ ctx.strokeStyle=`rgba(255,240,200,${p.life*.5})`; ctx.lineWidth=1.5; ctx.beginPath(); ctx.ellipse(isoX(p.x,p.y),isoY(p.x,p.y),p.r*HW,p.r*HH,0,0,7); ctx.stroke(); continue; }
+    ctx.globalAlpha=Math.min(1,p.life*1.5); ctx.fillStyle=p.col; ctx.fillRect(isoX(p.x,p.y)-1.5,isoY(p.x,p.y)-p.z-1.5,3,3); ctx.globalAlpha=1;
+  }
+  // ----- lighting pass
+  const dk=darkness(), tint=duskTint();
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if (tint>0){ ctx.fillStyle=`rgba(255,120,50,${tint})`; ctx.globalCompositeOperation='soft-light'; ctx.fillRect(0,0,CW,CH); ctx.globalCompositeOperation='source-over'; }
+  if (dk>0){
+    lctx.setTransform(DPR,0,0,DPR,0,0); lctx.globalCompositeOperation='source-over'; lctx.clearRect(0,0,CW,CH);
+    lctx.fillStyle=`rgba(8,10,28,${dk})`; lctx.fillRect(0,0,CW,CH);
+    lctx.globalCompositeOperation='destination-out';
+    const L=lights(); const fl=performance.now()/90;
+    for (const l of L){
+      const sx=(isoX(l.x,l.y)-cam.x)*z+CW/2, sy=(isoY(l.x,l.y)-cam.y)*z+CH/2;
+      const r=l.r*HW*z*(l.fire?1+Math.sin(fl)*.03+Math.sin(fl*1.7)*.02:1);
+      lctx.save(); lctx.translate(sx,sy); lctx.scale(1,.55);
+      const g=lctx.createRadialGradient(0,0,0,0,0,r); g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(.55,'rgba(0,0,0,.85)'); g.addColorStop(1,'rgba(0,0,0,0)');
+      lctx.fillStyle=g; lctx.beginPath(); lctx.arc(0,0,r,0,7); lctx.fill(); lctx.restore();
+    }
+    ctx.drawImage(light,0,0,CW,CH);
+    ctx.globalCompositeOperation='lighter';
+    for (const l of L){ if (l.player) continue;
+      const sx=(isoX(l.x,l.y)-cam.x)*z+CW/2, sy=(isoY(l.x,l.y)-cam.y)*z+CH/2, r=l.r*HW*z*.8;
+      ctx.save(); ctx.translate(sx,sy); ctx.scale(1,.55); const g=ctx.createRadialGradient(0,0,0,0,0,r);
+      g.addColorStop(0,`rgba(255,140,50,${l.fire?.32*dk:.18*dk})`); g.addColorStop(1,'rgba(255,120,40,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); ctx.restore(); }
+    ctx.globalCompositeOperation='source-over';
+    // keep zombie eyes / cones readable at night: redraw faint eyes
+    for (const zz of M.zs){ const sx=(isoX(zz.x,zz.y)-cam.x)*z+CW/2, sy=(isoY(zz.x,zz.y)-cam.y-30)*z+CH/2; ctx.fillStyle=zz.state==='chase'?'rgba(255,90,90,.9)':'rgba(220,255,200,.5)'; ctx.fillRect(sx-3*z,sy,2*z,1.5*z); ctx.fillRect(sx+1*z,sy,2*z,1.5*z); }
+  }
+  // floats (on top of darkness)
+  ctx.textAlign='center'; ctx.font='600 12px ui-sans-serif,system-ui';
+  for (const f of M.floats){ const sx=(isoX(f.x,f.y)-cam.x)*z+CW/2, sy=(isoY(f.x,f.y)-cam.y-30-f.z)*z+CH/2; ctx.globalAlpha=Math.min(1,f.life); ctx.fillStyle='#000'; ctx.fillText(f.t,sx+1,sy+1); ctx.fillStyle=f.col; ctx.fillText(f.t,sx,sy); }
+  ctx.globalAlpha=1;
+  if (S.sleeping){ ctx.fillStyle='rgba(5,5,15,.45)'; ctx.fillRect(0,0,CW,CH); ctx.fillStyle='#ffd27a'; ctx.font='600 22px ui-sans-serif'; ctx.fillText('z z z',CW/2,CH/2); }
+  if (S.hp<35){ const g=ctx.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*.3,CW/2,CH/2,Math.max(CW,CH)*.7); g.addColorStop(0,'rgba(120,0,0,0)'); g.addColorStop(1,`rgba(120,0,0,${(35-S.hp)/60})`); ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH); }
+}
+
+// ---------------------------------------------------------------------
+//  Input
+// ---------------------------------------------------------------------
+const hover={tile:null,obj:null,z:null}; let mouse={x:0,y:0}, drag=null; const keys={};
+function screenToGrid(mx,my){ const z=cam.z; const ix=(mx-CW/2)/z+cam.x, iy=(my-CH/2)/z+cam.y; return {gx:(iy/HH+ix/HW)/2, gy:(iy/HH-ix/HW)/2}; }
+function pick_(mx,my){
+  const {gx,gy}=screenToGrid(mx,my); const tile={x:Math.floor(gx),y:Math.floor(gy)};
+  let z=null, bd=22;
+  for (const zz of M.zs){ const sx=(isoX(zz.x,zz.y)-cam.x)*cam.z+CW/2, sy=(isoY(zz.x,zz.y)-14-cam.y)*cam.z+CH/2; const d=Math.hypot(mx-sx,my-sy)/cam.z; if(d<bd){bd=d;z=zz;} }
+  let obj=null;
+  // screen-space boxes for interactables (prefer front-most)
+  const cands=M.objs.filter(o=>OBJ[o.type].act && !(o.type==='crop'&&o.searched)).map(o=>{
+    const cx=(isoX(o.x+o.w/2,o.y+o.h/2)-cam.x)*cam.z+CW/2, cy=(isoY(o.x+o.w/2,o.y+o.h/2)-cam.y)*cam.z+CH/2;
+    const hw=(o.w+o.h)*HW/2*cam.z*.8, top=(o.type==='tree'?70:o.type==='van'?52:30)*cam.z;
+    return {o,hit: mx>cx-hw && mx<cx+hw && my>cy-top && my<cy+HH*cam.z, d:o.x+o.y};
+  }).filter(c=>c.hit).sort((a,b)=>b.d-a.d);
+  if (cands.length) obj=cands[0].o;
+  const occ = inb(tile.x,tile.y)?M.occ[idx(tile.x,tile.y)]:null; if (occ && OBJ[occ.type].act) obj=occ;
+  return {tile, obj, z};
+}
+function tipText(){
+  if (S.mode==='build') return '';
+  if (hover.z){ const zz=hover.z; return zz.state==='chase'||zz.state==='bash' ? '⚔ Fight (alert — it will hurt)' : '🗡 Silent takedown'; }
+  const o=hover.obj; if(!o) return '';
+  if (o.type==='van') return '🚐 Van — unload, camp, build, drive';
+  if (o.type==='fire') return o.burn>0?'🔥 Campfire — camp activities':'Cold ashes';
+  if (o.searched) return OBJ[o.type].act+' — empty';
+  const d=OBJ[o.type]; const nz = d.noise>=4?' (loud)':d.noise>=2?' (some noise)':'';
+  return `${d.act} ${o.type}${nz}`;
+}
+cv.addEventListener('mousemove',e=>{
+  mouse={x:e.clientX,y:e.clientY};
+  if (drag){ cam.x-= (e.clientX-drag.x)/cam.z; cam.y-=(e.clientY-drag.y)/cam.z; drag.x=e.clientX; drag.y=e.clientY; cam.follow=false; }
+  Object.assign(hover, pick_(e.clientX,e.clientY));
+  const tip=document.getElementById('tip'), t=tipText();
+  if (t){ tip.style.display='block'; tip.textContent=t; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px'; } else tip.style.display='none';
+});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('mousedown',e=>{
+  if (e.button===2||e.button===1){ drag={x:e.clientX,y:e.clientY}; return; }
+  if (e.button!==0 || S.paused || S.mode==='dead'||S.mode==='won') return;
+  initAudio();
+  if (S.sleeping){ interruptCozy('You get up in the dark.'); return; }
+  const h=pick_(e.clientX,e.clientY);
+  if (S.mode==='build'){ place(h.tile.x,h.tile.y); return; }
+  if (h.z) return orderAttack(h.z);
+  if (h.obj) return orderInteract(h.obj);
+  orderMove(h.tile.x,h.tile.y);
+});
+addEventListener('mouseup',()=>drag=null);
+cv.addEventListener('wheel',e=>{ e.preventDefault(); cam.z=clamp(cam.z*(e.deltaY<0?1.1:1/1.1),.55,2.4); },{passive:false});
+// touch: tap = click, drag = pan, pinch = zoom
+let touch=null;
+cv.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches; if(t.length===1) touch={x:t[0].clientX,y:t[0].clientY,sx:t[0].clientX,sy:t[0].clientY,moved:false}; else if(t.length===2) touch={pinch:Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY),z:cam.z}; },{passive:false});
+cv.addEventListener('touchmove',e=>{ e.preventDefault(); const t=e.touches; if(!touch)return; if(t.length===2&&touch.pinch){ cam.z=clamp(touch.z*Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)/touch.pinch,.55,2.4); return; }
+  if (t.length===1&&!touch.pinch){ const dx=t[0].clientX-touch.x, dy=t[0].clientY-touch.y; if(Math.hypot(t[0].clientX-touch.sx,t[0].clientY-touch.sy)>8) touch.moved=true; if(touch.moved){ cam.x-=dx/cam.z; cam.y-=dy/cam.z; cam.follow=false; } touch.x=t[0].clientX; touch.y=t[0].clientY; } },{passive:false});
+cv.addEventListener('touchend',e=>{ e.preventDefault(); if(touch&&!touch.moved&&!touch.pinch){ cv.dispatchEvent(new MouseEvent('mousedown',{clientX:touch.sx,clientY:touch.sy,button:0})); } touch=null; },{passive:false});
+
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase(); keys[k]=true;
+  if (k==='escape'){ if (document.getElementById('modal').style.display==='flex' && S.mode!=='dead' && S.mode!=='won') closeModal(); else if (S.mode==='build') toggleBuild(); return; }
+  if (S.paused||S.mode==='dead'||S.mode==='won') return;
+  if (k==='c') toggleCrouch();
+  if (k==='e') eat();
+  if (k==='b') toggleBuild();
+  if (k==='r') openCamp();
+  if (k==='t') openTravel();
+  if (k==='f') cycleSpeed();
+  if (k===' '){ e.preventDefault(); cam.follow=true; }
+  if (S.mode==='build' && '123'.includes(k)){ S.build=BUILD[+k-1].id; renderBuildBar(); }
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+function cycleSpeed(){ S.speedMul = S.speedMul===1?2:S.speedMul===2?4:1; }
+document.getElementById('bCrouch').onclick=toggleCrouch;
+document.getElementById('bEat').onclick=eat;
+document.getElementById('bBuild').onclick=toggleBuild;
+document.getElementById('bCamp').onclick=openCamp;
+document.getElementById('bDrive').onclick=openTravel;
+document.getElementById('bSpeed').onclick=cycleSpeed;
+document.getElementById('bHelp').onclick=showHelp;
+document.getElementById('modal').addEventListener('mousedown',e=>{ if(e.target.id==='modal' && S.mode!=='dead' && S.mode!=='won' && modalCb){ closeModal(); } });
+
+// ---------------------------------------------------------------------
+//  Audio (tiny, procedural)
+// ---------------------------------------------------------------------
+let AC=null, master=null, crick=0, crack=0;
+function initAudio(){
+  if (AC) return; try { AC=new (window.AudioContext||window.webkitAudioContext)(); master=AC.createGain(); master.gain.value=.35; master.connect(AC.destination); } catch(e){ AC=null; }
+}
+function blip(freq,dur,type='sine',vol=.05,when=0){
+  if (!AC) return; const o=AC.createOscillator(), g=AC.createGain(); o.type=type; o.frequency.value=freq;
+  const t=AC.currentTime+when; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.005); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t+dur+.02);
+}
+function noiseAudio(kind){
+  if (!AC) return; const len=kind==='thud'?.15:.04, b=AC.createBuffer(1,AC.sampleRate*len,AC.sampleRate), d=b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i]=(rnd()*2-1)*Math.pow(1-i/d.length,kind==='thud'?2:4);
+  const s=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain(); s.buffer=b; f.type=kind==='thud'?'lowpass':'highpass'; f.frequency.value=kind==='thud'?300:1800; g.gain.value=kind==='thud'?.4:.12;
+  s.connect(f).connect(g).connect(master); s.start();
+}
+function groan(){ if(!AC)return; const o=AC.createOscillator(), f=AC.createBiquadFilter(), g=AC.createGain(); o.type='sawtooth'; const t=AC.currentTime; o.frequency.setValueAtTime(110,t); o.frequency.linearRampToValueAtTime(70,t+.8); f.type='lowpass'; f.frequency.value=500; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.08,t+.1); g.gain.exponentialRampToValueAtTime(.0001,t+.9); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t+1); }
+function ambience(dt){
+  if (!AC) return;
+  if (isNight() || darkness()>.4){ crick-=dt; if (crick<=0){ crick=R(.4,1.6); for(let i=0;i<3;i++) blip(4200+R(-200,200),.035,'sine',.012,i*.07); } }
+  if (nearFire(6)){ crack-=dt; if (crack<=0){ crack=R(.05,.5); noiseAudio('crack'); } }
+  if (S.activity && S.activity.id==='guitar' && rnd()<dt*2.2){ const notes=[196,247,294,392,330,294]; blip(pick(notes),1.4,'triangle',.05); }
+}
+
+// ---------------------------------------------------------------------
+//  Main loop
+// ---------------------------------------------------------------------
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  if (!S.paused){
+    if (!S.activity && !S.sleeping && S.ts!==S.speedMul) S.ts=S.speedMul;
+    // substep so fast-forward stays stable (sim seconds = dt * S.ts)
+    const steps = Math.max(1, Math.ceil(S.ts/3));
+    for (let i=0;i<steps;i++) update(dt/steps);
+    ambience(dt);
+  }
+  // camera
+  const pan=520/cam.z*dt;
+  if (keys['w']||keys['arrowup']){ cam.y-=pan; cam.follow=false; } if (keys['s']||keys['arrowdown']){ cam.y+=pan; cam.follow=false; }
+  if (keys['a']||keys['arrowleft']){ cam.x-=pan; cam.follow=false; } if (keys['d']||keys['arrowright']){ cam.x+=pan; cam.follow=false; }
+  if (cam.follow){ cam.x+=(isoX(P.x,P.y)-cam.x)*Math.min(1,dt*5); cam.y+=(isoY(P.x,P.y)-20-cam.y)*Math.min(1,dt*5); }
+  render();
+  if ((hudT-=dt)<=0){ hudT=.1; hud(); }
+  requestAnimationFrame(frame);
+}
+newGame();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

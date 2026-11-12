@@ -95,3 +95,28 @@ outward winding via a positive signed volume.
 - `tools/check_obj.py` — mesh validator
 - `preview-hero.svg` — static design mockup of the hero
 - `vercel.json` — static deploy config
+
+---
+
+## Ember Road — camper-van survival prototype
+
+`ember-road.html` — a single-file, no-dependency grey-box prototype of an
+isometric camper-van survival game: **tense days, cozy nights**.
+
+Open the file directly in a browser (or `/ember-road` on the Vercel deploy).
+
+### What it tests
+
+| Question | Mechanic in the prototype |
+| --- | --- |
+| Can relaxing and survival coexist? | They alternate: day = scavenging under threat, night = camp activities |
+| Does being cozy actually matter? | **Comfort** sets how well you rest → next day's speed and healing |
+| What's the threat without hordes? | Hunger, fuel, and the few zombies *you* attract with light and noise |
+| Base-building vs a van? | Each morning: **stay** (keep your barricades, loot runs dry) or **drive on** (fresh loot, costs fuel, camp left behind) |
+| Is stealth readable from a high isometric camera? | Vision cones with a striped far zone (crouch-safe), tall grass, suspicion meters, noise rings |
+
+### Controls
+
+Click to move / search / attack (silent takedown on unaware zombies) · **C** crouch ·
+**E** eat · **B** build (barricade, campfire, spike trap) · **R** camp activities ·
+**T** drive on · **F** time speed · right-drag/WASD pan · wheel zoom · Space re-center.
