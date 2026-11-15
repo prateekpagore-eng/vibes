@@ -1171,9 +1171,12 @@ function tutBegin(c){
   cam.follow=true; initAudio(); hud();
 }
 function tutTick(){
-  if (!TUT.on || TUT.ch<0 || S.paused || TUT.objDone) return;
-  const c=CHAPTERS[TUT.ch]; if (!c || !c.goal()) return;
-  TUT.objDone=true; hud(); setTimeout(()=>{ if (TUT.on && !S.paused && S.mode!=='dead') tutNext(); }, 900);
+  if (!TUT.on || TUT.ch<0 || S.mode==='dead') return;
+  const c=CHAPTERS[TUT.ch]; if (!c) return;
+  if (!TUT.objDone){ if (S.paused || !c.goal()) return; TUT.objDone=true; TUT.doneAt=performance.now(); hud(); return; }
+  // goal met: move on once the player has had a beat to see it, and no menu is open (a menu pauses the game)
+  if (S.paused || document.getElementById('modal').style.display==='flex' || performance.now()-TUT.doneAt<900) return;
+  tutNext();
 }
 function tutEnd(){
   TUT.on=false; TUT.obj=''; document.getElementById('mcard').classList.remove('story');
