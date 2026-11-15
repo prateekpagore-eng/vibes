@@ -133,3 +133,13 @@ the 2D file; only the renderer and mouse picking differ.
   flickering campfire that casts shadows, van and string lights at night.
 - Rotatable camera (**Q / Z**, or middle-drag to orbit) and a graphics quality
   toggle (**G**).
+
+### Pixel-art version
+
+`ember-road-pixel.html` draws the same game as modern pixel art. It reuses the
+3D scene and renders it at low resolution, then adds stepped (cel) lighting,
+dark outlines, a dithered limited palette and hard-pixel upscaling. The camera
+snaps to the pixel grid so panning doesn't shimmer.
+
+- **G** changes the pixel size (2× to 6×); **Q / Z** rotate the camera.
+- Needs an internet connection for Three.js and the pixel font.
