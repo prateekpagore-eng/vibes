@@ -101,5 +101,5 @@ outward winding via a positive signed volume.
 ## Game dev
 
 Game prototypes live in [`game-dev/`](game-dev/). Currently: **Ember Road**, an
-isometric camper-van survival game in 2D, 3D and pixel-art builds. See
+isometric camper-van survival game in 3D (with a pixel-art mode) plus the original 2D prototype. See
 [`game-dev/README.md`](game-dev/README.md).

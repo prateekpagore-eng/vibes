@@ -1,17 +1,16 @@
 # Ember Road — camper-van survival prototype
 
-Three builds of the same game live in this folder:
+Two builds live in this folder:
 
 | File | Look |
 | --- | --- |
-| `ember-road.html` | 2D isometric, no dependencies |
-| `ember-road-3d.html` | Real 3D (Three.js) |
-| `ember-road-pixel.html` | Pixel art (low-resolution 3D) |
+| `ember-road-3d.html` | **The game.** Real 3D (Three.js), with a built-in pixel-art mode (**P**) |
+| `ember-road.html` | The original 2D prototype, no dependencies, kept for reference |
 
 `ember-road.html` — a single-file, no-dependency grey-box prototype of an
 isometric camper-van survival game: **tense days, cozy nights**.
 
-Open a file directly in a browser, or use `/game-dev/ember-road`, `/game-dev/ember-road-3d` and `/game-dev/ember-road-pixel` on the Vercel deploy.
+Open a file directly in a browser, or use `/game-dev/ember-road-3d` (and `/game-dev/ember-road`) on the Vercel deploy.
 
 ## What it tests
 
@@ -42,15 +41,14 @@ the 2D file; only the renderer and mouse picking differ.
 - Rotatable camera (**Q / Z**, or middle-drag to orbit) and a graphics quality
   toggle (**G**).
 
-## Pixel-art version
+## Pixel-art mode
 
-`ember-road-pixel.html` draws the same game as modern pixel art. It reuses the
-3D scene and renders it at low resolution, then adds stepped (cel) lighting,
-dark outlines, a dithered limited palette and hard-pixel upscaling. The camera
-snaps to the pixel grid so panning doesn't shimmer.
-
-- **G** changes the pixel size (2× to 6×); **Q / Z** rotate the camera.
-- Needs an internet connection for Three.js and the pixel font.
+Press **P** in the 3D build to switch to modern pixel art: the same scene is
+rendered at low resolution with screen-space cel shading, dark outlines, a
+dithered limited palette and hard-pixel upscaling, and the HUD switches to a
+pixel font with hard edges. The camera snaps to the pixel grid so panning
+doesn't shimmer. In this mode **G** changes the pixel size (2× to 6×). The
+choice is remembered.
 
 ## The opening: "The Last Campsite" (3D version only)
 
