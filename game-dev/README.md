@@ -51,3 +51,21 @@ snaps to the pixel grid so panning doesn't shimmer.
 
 - **G** changes the pixel size (2× to 6×); **Q / Z** rotate the camera.
 - Needs an internet connection for Three.js and the pixel font.
+
+## Survival systems (3D version only)
+
+The 3D build is the main version and has gameplay the other two don't:
+
+- **Thirst and water.** Clean water from shelves and cars; dirty water from rain
+  barrels and lakes, which should be boiled at a campfire. A rain-catcher van
+  upgrade collects clean water every dawn.
+- **Weapons that wear out.** Hatchet, spear (long reach, shoves zombies back),
+  crowbar (opens locked crates) and molotov. Bare hands can't do a silent
+  takedown, only a triple-damage sneak attack.
+- **Workbench and blueprints.** Craft weapons, first-aid wraps and tin-can
+  lures at the van. Recipes unlock as you gain levels from scavenging,
+  takedowns and surviving nights.
+- **Locked crates** with better loot, and a **throwable lure** to pull zombies
+  toward a noise.
+
+Extra keys: **X** drink · **V** switch weapon · **H** heal · **N** throw lure.

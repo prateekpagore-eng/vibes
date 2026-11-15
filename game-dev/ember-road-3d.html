@@ -39,7 +39,7 @@ button:hover:not(:disabled){border-color:var(--ember);background:#352838}
 button:disabled{opacity:.4;cursor:default}
 button.on{background:#5a3520;border-color:var(--ember)}
 button kbd{opacity:.6;font-size:11px;margin-left:4px}
-#hint{left:50%;transform:translateX(-50%);top:84px;color:var(--ember2);text-shadow:0 1px 3px #000;font-weight:600;text-align:center;white-space:nowrap}
+#hint{left:50%;transform:translateX(-50%);top:112px;color:var(--ember2);text-shadow:0 1px 3px #000;font-weight:600;text-align:center;white-space:nowrap}
 #tip{position:fixed;z-index:3;pointer-events:none;background:rgba(10,8,12,.9);border:1px solid var(--line);padding:3px 8px;border-radius:6px;font-size:12px;display:none;white-space:nowrap}
 #modal{position:fixed;inset:0;z-index:5;display:none;align-items:center;justify-content:center;background:rgba(8,6,10,.55);backdrop-filter:blur(2px)}
 #modal .card{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow:auto;padding:18px 20px}
@@ -72,6 +72,10 @@ ul.k{margin:6px 0;padding-left:18px} ul.k li{margin:2px 0}
 <div id="bar" class="hud">
   <button id="bCrouch">Crouch<kbd>C</kbd></button>
   <button id="bEat">Eat<kbd>E</kbd></button>
+  <button id="bDrink">Drink<kbd>X</kbd></button>
+  <button id="bWeapon">Weapon<kbd>V</kbd></button>
+  <button id="bHeal">Heal<kbd>H</kbd></button>
+  <button id="bLure">Lure<kbd>N</kbd></button>
   <button id="bBuild">Build camp<kbd>B</kbd></button>
   <button id="bCamp">Camp<kbd>R</kbd></button>
   <button id="bDrive">Drive on<kbd>T</kbd></button>
@@ -118,12 +122,31 @@ const UPGRADES = [
   {id:'lights', name:'Solar string lights',cost:{scrap:5},        desc:'Cozy activities give +50% comfort. Van glow is brighter — and more visible.'},
   {id:'stove',  name:'Camp stove',         cost:{scrap:4},        desc:'Cook hot meals without a campfire.'},
   {id:'kit',    name:'Folding barricades', cost:{scrap:6,wood:4}, desc:'Barricades are packed up (wood refunded) when you drive on.'},
+  {id:'rain',   name:'Rain catcher',       cost:{scrap:4,wood:2}, desc:'Collects 2 clean water every dawn.'},
 ];
 const BUILD = [
   {id:'fence', name:'Barricade',  cost:{wood:2},         key:'1', desc:'Blocks zombies. You can climb over.'},
   {id:'fire',  name:'Campfire',   cost:{wood:3},         key:'2', desc:'Light, cooking, comfort. Attracts the dead.'},
   {id:'trap',  name:'Spike trap', cost:{wood:1,scrap:1}, key:'3', desc:'Kills the first zombie that steps on it.'},
 ];
+// Weapons wear out. "silent" weapons can take down an unaware zombie in one hit.
+const WEAPONS = {
+  fists:   {name:'Bare hands', dmg:14, cd:.5,  reach:1.25, noise:3,   silent:false},
+  hatchet: {name:'Hatchet',    dmg:34, cd:.55, reach:1.25, noise:4,   silent:true, max:25},
+  spear:   {name:'Spear',      dmg:50, cd:.75, reach:2.0,  noise:2.5, silent:true, max:16},
+  crowbar: {name:'Crowbar',    dmg:42, cd:.65, reach:1.3,  noise:4.5, silent:true, max:40},
+  molotov: {name:'Molotov',    ranged:true, max:1},
+};
+// Blueprints unlock as you level up; everything is crafted at the van's workbench.
+const RECIPES = [
+  {id:'hatchet', lvl:1, name:'Hatchet',        cost:{wood:2,scrap:2},  desc:'Chops trees fast. 34 damage, 25 uses.', w:'hatchet'},
+  {id:'aid',     lvl:1, name:'First-aid wrap', cost:{water:1,scrap:1}, desc:'Heals 30 health. Press H to use.'},
+  {id:'lure',    lvl:2, name:'Tin-can lure',   cost:{scrap:1},         desc:'Throw it (N) to pull zombies toward the noise.'},
+  {id:'spear',   lvl:2, name:'Spear',          cost:{wood:3,scrap:1},  desc:'Long reach and quiet. 50 damage, 16 uses.', w:'spear'},
+  {id:'crowbar', lvl:3, name:'Crowbar',        cost:{scrap:5},         desc:'Opens locked crates. 42 damage, 40 uses.', w:'crowbar'},
+  {id:'molotov', lvl:4, name:'Molotov',        cost:{fuel:1,scrap:1},  desc:'Thrown. Burns everything in a small area. Very loud.', w:'molotov'},
+];
+const XPL = [0, 50, 130, 250, 420, 650];
 const LOC = {
   forest:{name:'Pine forest',        desc:'Quiet. Wood and berries.',          z:[2,4]},
   town:  {name:'Abandoned town',     desc:'Scrap and canned food. Crowded.',   z:[6,9]},
@@ -138,9 +161,10 @@ const STOPS_TO_GOAL = 6;
 
 function newGame(){
   S = {
-    day:1, min:8*60, stop:0, hp:100, hunger:80, comfort:55, rest:'normal',
-    van:{food:3, fuel:14, scrap:2, wood:5, cap:30, fuelCap:40, up:new Set()},
-    pack:{food:0, fuel:0, scrap:0, wood:0}, packCap:8,
+    day:1, min:8*60, stop:0, hp:100, hunger:80, thirst:85, comfort:55, rest:'normal',
+    van:{food:3, fuel:14, scrap:2, wood:5, water:3, dirty:0, cap:30, fuelCap:40, up:new Set()},
+    pack:{food:0, fuel:0, scrap:0, wood:0, water:0, dirty:0}, packCap:8,
+    xp:0, lvl:1, weapons:[{id:'hatchet',dur:14}], wi:0, aid:0, lures:1,
     crouch:false, speedMul:1, ts:1, activity:null, sleeping:false, mode:'play', build:null,
     kills:0, nightsCamped:0, campBonus:0, warned17:false, warned20:false, spawnedHour:-1, lastHour:8,
   };
@@ -164,6 +188,8 @@ const OBJ = {
   rock:  {move:1, sight:0},
   fence: {move:1, sight:0},
   trap:  {move:0, sight:0},
+  barrel:{move:1, sight:0, act:'Collect', time:2, noise:0},
+  waterhole:{move:0, sight:0, act:'Fill', time:2, noise:0},
   fire:  {move:1, sight:0, act:'Camp'},
   van:   {move:1, sight:1, act:'Van'},
 };
@@ -268,6 +294,16 @@ function loadLocation(type, name){
   }
   for (let k=0;k<10;k++){ const x=RI(0,MW-1), y=RI(roadY+3,MH-1); if(free(x,y)&&M.tiles[idx(x,y)]===T.GRASS) addObj('rock',x,y); }
 
+  // water in loot, locked crates (better loot, need a crowbar), rain barrels
+  for (const o of M.objs){
+    if (o.type==='shelf') o.loot.water=RI(0,1);
+    if (o.type==='car' && rnd()<.35) o.loot.water=1;
+    if (o.type==='crate' && type!=='forest' && rnd()<.28+Math.min(.25,(S.stop||0)*.05)){ o.locked=true; o.loot.scrap=(o.loot.scrap||0)+RI(2,4); o.loot.food=(o.loot.food||0)+RI(1,2); o.loot.water=RI(0,1); }
+  }
+  for (let k=0, n={town:4,farm:3,gas:2,forest:1,lake:0,goal:1}[type]; k<n; k++) for (let t=0;t<40;t++){
+    const x=RI(2,MW-3), y=RI(roadY+3,MH-3), tt=M.tiles[idx(x,y)];
+    if (free(x,y) && (tt===T.GRASS||tt===T.ASPHALT) && dist(x,y,P.x,P.y)>4){ addObj('barrel',x,y,{loot:{dirty:RI(2,4)}}); break; }
+  }
   // zombies
   const [zmin,zmax] = LOC[type].z;
   const n = RI(zmin,zmax) + Math.floor((S.stop||0)/2);
@@ -342,6 +378,8 @@ function tickTime(gm){
   const before = S.min; S.min += gm;
   // stats
   S.hunger = clamp(S.hunger - gm/60*4, 0, 100);
+  S.thirst = clamp(S.thirst - gm/60*5.5*(S.sleeping?.4:1), 0, 100);
+  if (S.thirst<=0) S.hp -= gm/60*8;
   S.comfort = clamp(S.comfort - gm/60*1.2, 0, 100);
   if (S.hunger<=0) S.hp -= gm/60*6;
   else if (S.hunger>50 && S.rest==='rested') S.hp = Math.min(100, S.hp + gm/60*2);
@@ -370,32 +408,35 @@ function newDay(){
   log(`Day ${S.day}. ${S.rest==='rested'?'You feel well rested (+speed, regen).':S.rest==='restless'?'Restless night (-speed).':'An ordinary morning.'}`, S.rest==='restless'?'warn':'good');
   S.comfort = clamp(S.comfort*.7, 0, 100);
   for (const z of M.zs) z.night=false;
+  if (S.van.up.has('rain')){ const n=Math.min(2,S.van.cap-vanUsed()); S.van.water+=n; if (n) log(`The rain catcher collected ${n} clean water overnight.`,'good'); }
+  gainXP(25);
 }
 
 // ---------------------------------------------------------------------
 //  Inventory helpers
 // ---------------------------------------------------------------------
-const packUsed = ()=>S.pack.food+S.pack.fuel+S.pack.scrap+S.pack.wood;
-const vanUsed = ()=>S.van.food+S.van.scrap+S.van.wood;
+const packUsed = ()=>S.pack.food+S.pack.fuel+S.pack.scrap+S.pack.wood+S.pack.water+S.pack.dirty;
+const vanUsed = ()=>S.van.food+S.van.scrap+S.van.wood+S.van.water+S.van.dirty;
+const NAME = {dirty:'dirty water'};
 const have = (cost)=>Object.entries(cost).every(([k,v])=>S.pack[k]+S.van[k]>=v);
 function spend(cost){ for (const [k,v] of Object.entries(cost)){ let n=v; const a=Math.min(n,S.pack[k]); S.pack[k]-=a; n-=a; S.van[k]-=n; } }
-const costStr = c=>Object.entries(c).map(([k,v])=>`${v} ${k}`).join(' · ');
+const costStr = c=>Object.entries(c).map(([k,v])=>`${v} ${NAME[k]||k}`).join(' · ');
 const nearVan = (r=2.2)=>{ const v=M.van; const cx=clamp(P.x,v.x,v.x+v.w), cy=clamp(P.y,v.y,v.y+v.h); return dist(P.x,P.y,cx,cy)<r; };
 function unload(){
   let moved = 0;
   const f = Math.min(S.pack.fuel, S.van.fuelCap - S.van.fuel); S.van.fuel+=f; S.pack.fuel-=f; moved+=f;
-  for (const k of ['food','scrap','wood']){ const n=Math.min(S.pack[k], S.van.cap-vanUsed()); S.van[k]+=n; S.pack[k]-=n; moved+=n; }
+  for (const k of ['food','scrap','wood','water','dirty']){ const n=Math.min(S.pack[k], S.van.cap-vanUsed()); S.van[k]+=n; S.pack[k]-=n; moved+=n; }
   if (moved) log(`Unloaded ${moved} into the van.`, 'good');
   if (packUsed()) log('Van storage is full — upgrade with a roof rack.', 'warn');
 }
 function takeLoot(o){
   const got = [];
-  for (const k of ['fuel','food','scrap','wood']){
+  for (const k of ['fuel','food','scrap','wood','water','dirty']){
     const n = Math.min(o.loot[k]||0, S.packCap-packUsed());
-    if (n>0){ S.pack[k]+=n; o.loot[k]-=n; got.push(`${n} ${k}`); }
+    if (n>0){ S.pack[k]+=n; o.loot[k]-=n; got.push(`${n} ${NAME[k]||k}`); }
   }
   const left = Object.values(o.loot).reduce((a,b)=>a+(b||0),0);
-  if (got.length) { log(`Found ${got.join(', ')}.`, 'good'); floatText(o.x+.5,o.y+.5,'+'+got.join(' +'),'#ffd27a'); }
+  if (got.length) { gainXP(3); log(`Found ${got.join(', ')}.`, 'good'); floatText(o.x+.5,o.y+.5,'+'+got.join(' +'),'#ffd27a'); }
   else if (left) log('Backpack full. Unload at the van.', 'warn');
   else log('Nothing useful.', '');
   if (!left) o.searched = true;
@@ -405,6 +446,51 @@ function eat(){
   if (S.pack.food>0) S.pack.food--; else if (nearVan() && S.van.food>0) S.van.food--; else { log(nearVan()?'No food left.':'No food in your backpack.', 'warn'); return; }
   S.hunger = clamp(S.hunger+25,0,100); log('You eat something cold out of a can. (+25 hunger)');
 }
+function drink(){
+  const src = S.pack.water>0?['pack','water'] : (nearVan()&&S.van.water>0)?['van','water'] : S.pack.dirty>0?['pack','dirty'] : (nearVan()&&S.van.dirty>0)?['van','dirty'] : null;
+  if (!src){ log('Nothing to drink. Look for barrels, shelves or a lake.','warn'); return; }
+  S[src[0]][src[1]]--;
+  if (src[1]==='water'){ S.thirst=clamp(S.thirst+35,0,100); log('Clean water. (+35 thirst)'); }
+  else { S.thirst=clamp(S.thirst+25,0,100); if (rnd()<.4){ S.hp-=10; log('Dirty water. Your stomach cramps. (-10 health) Boil it at a campfire.','warn'); } else log('Dirty water. You got away with it this time. Boil it at a campfire to be safe.'); }
+}
+function heal(){
+  if (!S.aid){ log('No first-aid wraps. Craft one at the van\'s workbench.','warn'); return; }
+  if (S.hp>=100){ log('You\'re not hurt.'); return; }
+  S.aid--; S.hp=Math.min(100,S.hp+30); floatText(P.x,P.y,'+30 health','#8fd18b'); log('You wrap the wound. (+30 health)','good');
+}
+// ---- weapons, XP, throwables ----
+const curW = ()=>S.weapons[S.wi] || {id:'fists', dur:Infinity};
+const WD = ()=>WEAPONS[curW().id];
+const hasW = id=>S.weapons.some(w=>w.id===id);
+function wearById(id,n=1){
+  const i=S.weapons.findIndex(w=>w.id===id); if (i<0) return; const w=S.weapons[i]; w.dur-=n;
+  if (w.dur<=0){ log(id==='molotov'?'That was your last molotov.':`Your ${WEAPONS[id].name.toLowerCase()} breaks.`,'warn'); S.weapons.splice(i,1); if (S.wi>i) S.wi--; else if (S.wi===i) S.wi=0; }
+}
+function cycleWeapon(){ S.wi=(S.wi+1)%(S.weapons.length+1); const w=curW(); log(`Equipped: ${WD().name}${w.id==='fists'?'':w.id==='molotov'?' ×'+w.dur:` (${w.dur}/${WD().max})`}.`); }
+function gainXP(n){
+  S.xp+=n; const l=XPL.filter(v=>S.xp>=v).length;
+  if (l>S.lvl){ S.lvl=l; const un=RECIPES.filter(r=>r.lvl===l).map(r=>r.name); log(`Level ${l}!${un.length?' New blueprint: '+un.join(', ')+'.':''}`,'good'); floatText(P.x,P.y,'LEVEL UP','#8fd18b'); }
+}
+function throwMolotov(x,y){
+  wearById('molotov',1); noise(x,y,8); shake=5;
+  for (let i=0;i<70;i++) M.parts.push({x:x+R(-1.2,1.2),y:y+R(-1.2,1.2),vx:R(-.6,.6),vy:R(-.6,.6),z:R(2,14),vz:R(20,70),life:R(.5,1.6),col:pick(['#ffb347','#ff7b2e','#ffd27a','#ff5a1e']),ember:true});
+  M.decals.push({x,y,r:.9,a:0,scorch:true});
+  let n=0; for (const z of M.zs) if (z.hp>0 && dist(z.x,z.y,x,y)<1.8){ z.hp=0; killZombie(z,false,'fire'); n++; }
+  log(n?`The bottle bursts. ${n} burned.`:'The bottle bursts on empty ground.', n?'good':'warn');
+}
+function toggleThrow(){
+  if (S.mode==='throw'){ S.mode='play'; return; }
+  if (!S.lures){ log('No lures. Craft tin-can lures at the workbench (level 2).','warn'); return; }
+  if (S.mode==='build') toggleBuild(); S.mode='throw';
+}
+function throwLure(tx,ty){
+  if (!inb(tx,ty)) return;
+  if (dist(tx+.5,ty+.5,P.x,P.y)>8){ log('Too far to throw.','warn'); return; }
+  S.lures--; S.mode='play'; P.anim=.35; P.dir=Math.atan2(ty+.5-P.y,tx+.5-P.x); noise(tx+.5,ty+.5,6.5);
+  for (let i=0;i<8;i++) M.parts.push({x:tx+.5,y:ty+.5,vx:R(-1,1),vy:R(-1,1),z:6,vz:R(20,50),life:.6,col:'#c9c9c4'});
+  log('The can clatters across the ground. Heads turn.');
+}
+function orderWater(tx,ty){ orderInteract({type:'waterhole',x:tx,y:ty,w:1,h:1,loot:{dirty:3}}); }
 
 // ---------------------------------------------------------------------
 //  Noise & perception
@@ -458,7 +544,7 @@ function moveAlong(e, speed, dt, onBlocked){
   if (d<=step){ e.x=tx; e.y=ty; e.path.shift(); } else { e.x+=dx/d*step; e.y+=dy/d*step; }
   return true;
 }
-function playerSpeed(){ let s = S.crouch?1.35:2.6; if (S.rest==='rested') s*=1.15; if (S.rest==='restless') s*=.85; if (S.hunger<=0) s*=.8; return s; }
+function playerSpeed(){ let s = S.crouch?1.35:2.6; if (S.rest==='rested') s*=1.15; if (S.rest==='restless') s*=.85; if (S.hunger<=0) s*=.8; if (S.thirst<=0) s*=.8; return s; }
 
 function update(dt){
   if (S.mode==='dead'||S.mode==='won') return;
@@ -476,19 +562,27 @@ function update(dt){
         a.t += sdt;
         if (a.t>=a.dur){ P.act=null; a.done(); }
       } else if (a.kind==='attack'){
-        const z=a.z;
+        const z=a.z, wd=WD(), d=dist(P.x,P.y,z.x,z.y);
         if (z.hp<=0){ P.act=null; }
-        else if (dist(P.x,P.y,z.x,z.y)<1.25){
+        else if (wd.ranged){
+          if (d<5.5 && lineClear(P.x,P.y,z.x,z.y)){ P.path=[]; P.dir=Math.atan2(z.y-P.y,z.x-P.x); P.anim=.4; P.act=null; throwMolotov(z.x,z.y); }
+          else if (!P.path.length || (a.re-=sdt)<0){ a.re=.4; P.path=astar(Math.floor(P.x),Math.floor(P.y),(x,y)=>dist(x+.5,y+.5,z.x,z.y)<5&&lineClear(x+.5,y+.5,z.x,z.y),z.x,z.y,playerCost)||[]; }
+        }
+        else if (d<wd.reach){
           P.path=[]; P.dir=Math.atan2(z.y-P.y,z.x-P.x);
-          if (z.state!=='chase' && !a.started){ // stealth takedown (also works on zombies busy bashing a barricade)
-            a.started=true; z.hp=0; killZombie(z, true); P.act=null; P.anim=.4;
+          const unaware = z.state!=='chase', wid=curW().id;
+          if (unaware && !a.started && wd.silent){ // silent takedown (also works on zombies busy bashing a barricade)
+            a.started=true; z.hp=0; killZombie(z, true); wearById(wid,1); P.act=null; P.anim=.4;
           } else {
-            a.started=true; P.hit-=sdt;
-            if (P.hit<=0){ P.hit=.55; z.hp-=34; P.anim=.25; noise(P.x,P.y,4); blood(z.x,z.y,3);
+            if (!a.started){ a.started=true; a.sneak=unaware; P.hit=0; }
+            P.hit-=sdt;
+            if (P.hit<=0){ P.hit=wd.cd; z.hp-=wd.dmg*(a.sneak?3:1); a.sneak=false; P.anim=.25; noise(P.x,P.y,wd.noise); blood(z.x,z.y,3); wearById(wid,1);
+              z.atk=Math.max(z.atk,.5);   // a hit staggers; the spear also shoves them back out of biting range
+              if (wid==='spear'){ const ux=(z.x-P.x)/(d||1), uy=(z.y-P.y)/(d||1), nx=z.x+ux*.6, ny=z.y+uy*.6; if (!blocksMove(Math.floor(nx),Math.floor(ny),'zombie')){ z.x=nx; z.y=ny; z.path=[]; z.repath=.25; } }
               if (z.state!=='chase'){ z.state='chase'; z.sus=1; }
               if (z.hp<=0){ killZombie(z,false); P.act=null; } }
           }
-        } else if (!P.path.length || (a.re-=sdt)<0){ a.re=.4; P.path=astar(Math.floor(P.x),Math.floor(P.y),(x,y)=>dist(x+.5,y+.5,z.x,z.y)<1.2,z.x,z.y,playerCost)||[]; }
+        } else if (!P.path.length || (a.re-=sdt)<0){ a.re=.4; const rr=Math.max(1.1,wd.reach-.15); P.path=astar(Math.floor(P.x),Math.floor(P.y),(x,y)=>dist(x+.5,y+.5,z.x,z.y)<rr,z.x,z.y,playerCost)||[]; }
       }
     }
     if (P.path.length){
@@ -581,7 +675,9 @@ function nearestLight(z){
 }
 function killZombie(z, stealth, how){
   S.kills++; blood(z.x,z.y,stealth?4:6); M.decals.push({x:z.x,y:z.y,r:R(.25,.4),a:R(0,6)});
+  gainXP(stealth?18:10);
   if (stealth){ log('Silent takedown.', 'good'); noise(z.x,z.y,1.2); }
+  else if (how==='fire') return;
   else if (how==='trap') log('A spike trap did its job.', 'good');
   else log('Zombie down.', 'good');
 }
@@ -619,11 +715,20 @@ function startAction(a){
   if (o.type==='van'){ unload(); openVanMenu(); return; }
   if (o.type==='fire'){ openCamp(); return; }
   if (o.searched){ log('Already picked clean.'); return; }
+  if (o.locked && !hasW('crowbar')){ log('Locked tight. A crowbar would open it. (Workbench, level 3)','warn'); return; }
   if (packUsed()>=S.packCap){ log('Backpack full. Unload at the van.','warn'); return; }
-  if (d.noise) noise(P.x,P.y,d.noise);
-  P.act={kind:'work', t:0, dur:d.time, label:d.act, done:()=>{
-    if (o.type==='tree'){ const n=Math.min(2,S.packCap-packUsed()); S.pack.wood+=n; floatText(o.x+.5,o.y+.5,`+${n} wood`,'#ffd27a'); log(`Chopped ${n} wood.`, 'good'); removeObj(o); addObj('stump',o.x,o.y); }
-    else { takeLoot(o); if (o.type==='crop'&&o.searched) removeObj(o); if (o.type==='bush'&&o.searched) o.bare=true; }
+  const axe = hasW('hatchet');
+  const dur = o.locked?3.5 : (o.type==='tree'&&!axe)?6.5 : d.time, nz = o.locked?4.5 : d.noise;
+  if (nz) noise(P.x,P.y,nz);
+  P.act={kind:'work', t:0, dur, label:d.act, done:()=>{
+    if (o.type==='tree'){
+      const n=Math.min(axe?2:1,S.packCap-packUsed()); S.pack.wood+=n; floatText(o.x+.5,o.y+.5,`+${n} wood`,'#ffd27a');
+      log(axe?`Chopped ${n} wood.`:`Snapped off ${n} wood by hand. A hatchet would be faster.`, 'good'); if (axe) wearById('hatchet',1); gainXP(2);
+      removeObj(o); addObj('stump',o.x,o.y);
+    } else {
+      if (o.locked){ o.locked=false; wearById('crowbar',2); gainXP(6); log('The lock gives with a crack.','good'); }
+      takeLoot(o); if (o.type==='crop'&&o.searched) removeObj(o); if (o.type==='bush'&&o.searched) o.bare=true;
+    }
   }};
 }
 function toggleCrouch(){ S.crouch=!S.crouch; }
@@ -675,6 +780,7 @@ function openCamp(){
     {id:'cook',   name:'Cook a hot meal', hrs:1, cost:'1 food', ok:(fire||(stove&&atVan)) && (S.pack.food+S.van.food)>0, why:'Needs a campfire (or the camp stove) and food', desc:'+40 hunger, +10 comfort'},
     {id:'fire',   name:'Sit by the fire', hrs:1, ok:fire, why:'Needs a lit campfire', desc:`+${Math.round(14*mult)} comfort`},
     {id:'guitar', name:'Play guitar',     hrs:1, ok:fire||atVan, why:'Sit at the van or fire', desc:`+${Math.round(26*mult)} comfort · LOUD (noise radius 11)`},
+    {id:'boil',   name:'Boil water', hrs:1, ok:(fire||(stove&&atVan)) && (S.pack.dirty+S.van.dirty)>0, why:'Needs a campfire (or the camp stove) and dirty water', desc:`Makes ${S.pack.dirty+S.van.dirty} dirty water safe to drink`},
     {id:'read',   name:'Read in the van', hrs:1, ok:atVan, why:'Be at the van', desc:`+${Math.round(8*mult)} comfort, quiet`},
     {id:'tinker', name:'Tinker on the van', hrs:2, ok:atVan, why:'Be at the van', desc:'Install upgrades (2h)'},
     {id:'sleep',  name:'Sleep in the van', hrs:0, ok:atVan && evening, why:evening?'Be at the van':'Only in the evening', desc:'Skip to dawn. Rest quality = comfort.'},
@@ -694,6 +800,7 @@ function openCamp(){
     if (id==='fire') run(1,()=>{ addComfort(14*mult); log(pick(FLAVOR.fire),'cozy'); });
     if (id==='guitar'){ noise(P.x,P.y,11); run(1,()=>{ addComfort(26*mult); log(pick(FLAVOR.guitar),'cozy'); }); }
     if (id==='read') run(1,()=>{ addComfort(8*mult); log(pick(FLAVOR.read),'cozy'); });
+    if (id==='boil') run(1,()=>{ const n=S.pack.dirty+S.van.dirty; S.pack.water+=S.pack.dirty; S.pack.dirty=0; S.van.water+=S.van.dirty; S.van.dirty=0; addComfort(4); log(`The pot rattles to a boil. ${n} water is now safe to drink.`,'cozy'); });
   });
 }
 function addComfort(n){ S.comfort=clamp(S.comfort+n,0,100); floatText(P.x,P.y,`+${Math.round(n)} comfort`,'#ffd27a'); }
@@ -719,17 +826,35 @@ function openUpgrades(){
     }}; S.ts=6;
   });
 }
+function openCraft(){
+  const own = r=>r.w && r.w!=='molotov' && hasW(r.w);
+  modal(`<h2>Workbench</h2>
+    <p class="mute">Level <b style="color:var(--ink)">${S.lvl}</b> · ${S.xp} XP${XPL[S.lvl]!==undefined?` · next level at ${XPL[S.lvl]}`:''}. You earn XP by scavenging, takedowns and surviving nights.</p>
+    <p class="mute">Carrying: ${S.weapons.map(w=>`${WEAPONS[w.id].name} ${w.id==='molotov'?'×'+w.dur:w.dur+'/'+WEAPONS[w.id].max}`).join(' · ')||'no weapons'} · wraps ${S.aid} · lures ${S.lures}</p>
+    <div class="opts">${RECIPES.map(r=>{ const locked=S.lvl<r.lvl, ok=!locked&&have(r.cost)&&!own(r);
+      return `<button class="opt" data-a="${r.id}" ${ok?'':'disabled'}><span><b>${locked?'🔒 ':''}${r.name}</b><small>${locked?`Blueprint unlocks at level ${r.lvl}`:own(r)?'You already carry one':r.desc}</small></span><span class="cost">${costStr(r.cost)}</span></button>`; }).join('')}</div>
+    <div class="row"><button data-a="close">Close</button></div>`,
+  (id)=>{
+    if (id==='close') return closeModal();
+    const r=RECIPES.find(r=>r.id===id); if (!r) return;
+    spend(r.cost); gainXP(5);
+    if (r.id==='aid') S.aid++; else if (r.id==='lure') S.lures++;
+    else { const st=S.weapons.find(w=>w.id===r.w); if (st && r.w==='molotov') st.dur++; else { S.weapons.push({id:r.w,dur:WEAPONS[r.w].max}); if (curW().id==='fists') S.wi=S.weapons.length-1; } }
+    log(`Crafted: ${r.name}.`,'good'); closeModal(); openCraft();
+  });
+}
 function openVanMenu(){
   const h=S.min/60%24;
   modal(`<h2>The van</h2>
-    <p>Fuel <b>${S.van.fuel}/${S.van.fuelCap} L</b> · Food <b>${S.van.food}</b> · Scrap <b>${S.van.scrap}</b> · Wood <b>${S.van.wood}</b> <span class="mute">(storage ${vanUsed()}/${S.van.cap})</span></p>
+    <p>Fuel <b>${S.van.fuel}/${S.van.fuelCap} L</b> · Food <b>${S.van.food}</b> · Scrap <b>${S.van.scrap}</b> · Wood <b>${S.van.wood}</b> · Water <b>${S.van.water}</b>${S.van.dirty?` (+${S.van.dirty} dirty)`:''} <span class="mute">(storage ${vanUsed()}/${S.van.cap})</span></p>
     <p class="mute">${S.van.up.size?'Upgrades: '+[...S.van.up].map(id=>UPGRADES.find(u=>u.id===id).name).join(', '):'No upgrades yet.'}</p>
     <div class="opts">
       <button class="opt" data-a="camp"><span><b>Camp activities</b><small>Cook, rest, play, tinker, sleep</small></span></button>
+      <button class="opt" data-a="craft"><span><b>Workbench</b><small>Craft weapons, first-aid wraps and lures · Level ${S.lvl}</small></span></button>
       <button class="opt" data-a="build"><span><b>Build around the van</b><small>Barricades, campfire, traps</small></span></button>
       <button class="opt" data-a="drive" ${h>=6&&h<17?'':'disabled'}><span><b>Drive on</b><small>${h>=6&&h<17?'Pick the next stop on the road':'Too dark to drive. Only between 06:00 and 17:00.'}</small></span></button>
     </div><div class="row"><button data-a="close">Close</button></div>`,
-  (id)=>{ closeModal(); if(id==='camp') openCamp(); if(id==='build'){ if(S.mode!=='build') toggleBuild(); } if(id==='drive') openTravel(); });
+  (id)=>{ closeModal(); if(id==='camp') openCamp(); if(id==='craft') openCraft(); if(id==='build'){ if(S.mode!=='build') toggleBuild(); } if(id==='drive') openTravel(); });
 }
 
 // ---------------------------------------------------------------------
@@ -771,7 +896,7 @@ function openTravel(){
 function die(){
   S.mode='dead'; S.hp=0;
   modal(`<h2>The road ends here</h2><p>You survived <b>${S.day}</b> day${S.day>1?'s':''}, reached stop <b>${S.stop+1}</b>, put down <b>${S.kills}</b> of the dead and camped <b>${S.nightsCamped}</b> night${S.nightsCamped===1?'':'s'}.</p>
-  <p class="mute">${S.hunger<=0?'Hunger wore you down.':'They got you.'}</p><div class="row"><button data-a="again">Try again</button></div>`, ()=>{ closeModal(); newGame(); });
+  <p class="mute">${S.thirst<=0?'Thirst wore you down.':S.hunger<=0?'Hunger wore you down.':'They got you.'}</p><div class="row"><button data-a="again">Try again</button></div>`, ()=>{ closeModal(); newGame(); });
 }
 function win(){
   S.mode='won';
@@ -792,7 +917,9 @@ function showIntro(){
   <ul class="k"><li><b>Click</b> to move · <b>click</b> crates, cars, pumps, trees, bushes to scavenge (it makes noise)</li>
   <li>Zombies have <b>vision cones</b>. In the <b>striped</b> far zone, <b>crouching (C)</b> keeps you hidden. Crouch in <b>tall grass</b> to vanish.</li>
   <li>Click an <b>unaware</b> zombie for a silent takedown. Fighting an alert one is loud and hurts.</li>
-  <li>Your backpack is small. Walk loot back to the <b>van</b> (click it) to unload.</li></ul>
+  <li>Your backpack is small. Walk loot back to the <b>van</b> (click it) to unload.</li>
+  <li>Watch your <b>thirst</b>: drink with <b>X</b>. Barrels and lakes give dirty water; boil it at a campfire.</li>
+  <li><b>Weapons wear out.</b> Switch with <b>V</b>, craft new ones at the van's <b>workbench</b>. New blueprints unlock as you level up.</li></ul>
   <h3>Nights are cozy — if you earn it</h3>
   <ul class="k"><li>At dusk, <b>build (B)</b> barricades, a campfire, traps around the van.</li>
   <li>A campfire lets you cook and relax — but the dead are drawn to light. Guitar is lovely and <i>loud</i>.</li>
@@ -816,16 +943,19 @@ const bar=(v,col)=>`<div class="bar"><i style="width:${clamp(v,0,100)}%;backgrou
 let hudT=0;
 function hud(){
   const ph=phaseName();
-  document.getElementById('clock').innerHTML = `<div class="big">Day ${S.day} · ${clockStr()} <span class="badge">${ph}</span>${S.ts>1?`<span class="badge">${S.ts}×</span>`:''}</div><div class="sub">${M.name} — ${LOC[M.type].name}</div>`;
+  document.getElementById('clock').innerHTML = `<div class="big">Day ${S.day} · ${clockStr()} <span class="badge">${ph}</span><span class="badge" title="${S.xp} XP">Lv ${S.lvl}</span>${S.ts>1?`<span class="badge">${S.ts}×</span>`:''}</div><div class="sub">${M.name} — ${LOC[M.type].name}</div>`;
   const restBadge = S.rest==='rested'?'<span class="badge" style="color:var(--ok)">rested</span>':S.rest==='restless'?'<span class="badge" style="color:var(--danger)">restless</span>':'';
   document.getElementById('stats').innerHTML =
     `<span>Health</span>${bar(S.hp,'#e5534b')}<span>${Math.round(S.hp)}</span>`+
     `<span>Hunger</span>${bar(S.hunger,'#d9a441')}<span>${Math.round(S.hunger)}</span>`+
+    `<span>Thirst</span>${bar(S.thirst,'#5aa9d6')}<span>${Math.round(S.thirst)}</span>`+
     `<span>Comfort</span>${bar(S.comfort,'#ff9a4d')}<span>${Math.round(S.comfort)}${restBadge}</span>`;
   document.getElementById('res').innerHTML =
-    `<div><span>Fuel</span> <b>${S.van.fuel}</b><span>/${S.van.fuelCap}L</span></div><div><span>Food</span> <b>${S.van.food}</b></div><div><span>Scrap</span> <b>${S.van.scrap}</b></div><div><span>Wood</span> <b>${S.van.wood}</b></div><div><span>Van</span> ${vanUsed()}/${S.van.cap}</div>`;
-  const items=Object.entries(S.pack).filter(([,v])=>v).map(([k,v])=>`${v} ${k}`).join(', ');
-  document.getElementById('pack').innerHTML = `🎒 ${packUsed()}/${S.packCap}${items?' — '+items:''}`;
+    `<div><span>Fuel</span> <b>${S.van.fuel}</b><span>/${S.van.fuelCap}L</span></div><div><span>Food</span> <b>${S.van.food}</b></div><div><span>Scrap</span> <b>${S.van.scrap}</b></div><div><span>Wood</span> <b>${S.van.wood}</b></div><div><span>Water</span> <b>${S.van.water}</b>${S.van.dirty?`<span>+${S.van.dirty} dirty</span>`:''}</div><div><span>Van</span> ${vanUsed()}/${S.van.cap}</div>`;
+  const items=Object.entries(S.pack).filter(([,v])=>v).map(([k,v])=>`${v} ${NAME[k]||k}`).join(', ');
+  const cw=curW(), wtxt=cw.id==='fists'?'Bare hands':cw.id==='molotov'?`Molotov ×${cw.dur}`:`${WD().name} ${cw.dur}/${WD().max}`;
+  document.getElementById('pack').innerHTML = `🎒 ${packUsed()}/${S.packCap}${items?' — '+items:''}<br>⚔ <b style="color:${cw.id!=='fists'&&cw.id!=='molotov'&&cw.dur<=4?'var(--danger)':'var(--ink)'}">${wtxt}</b>${S.aid?` · 🩹 ${S.aid}`:''}${S.lures?` · 🥫 ${S.lures}`:''}`;
+  document.getElementById('bHeal').style.display=S.aid?'':'none'; document.getElementById('bLure').style.display=S.lures?'':'none'; document.getElementById('bLure').classList.toggle('on',S.mode==='throw');
   const h=S.min/60%24;
   document.getElementById('bCrouch').classList.toggle('on',S.crouch);
   document.getElementById('bBuild').classList.toggle('on',S.mode==='build');
@@ -833,11 +963,13 @@ function hud(){
   document.getElementById('bSpeed').innerHTML = `${S.speedMul}×<kbd>F</kbd>`;
   let hint='';
   if (S.sleeping) hint='Sleeping… (click to wake)';
-  else if (S.activity) hint=`${({cook:'Cooking',fire:'Sitting by the fire',guitar:'Playing guitar',read:'Reading',tinker:'Tinkering'})[S.activity.id]}… (click anywhere to stop)`;
+  else if (S.activity) hint=`${({cook:'Cooking',fire:'Sitting by the fire',guitar:'Playing guitar',read:'Reading',tinker:'Tinkering',boil:'Boiling water'})[S.activity.id]}… (click anywhere to stop)`;
+  else if (S.mode==='throw') hint='Throw the lure: click a spot within 8 tiles · Esc to cancel';
   else if (S.mode==='build') hint=`Building: ${BUILD.find(b=>b.id===S.build).name} — click near the van · 1/2/3 to switch · Esc when done`;
   else if (h>=17 && h<20.5 && !nearVan(3)) hint='Dusk — head back to the van';
   else if (h>=17 && h<20.5) hint='Make camp: B to build, R for camp activities';
   else if (isNight() && !nearVan(3)) hint='It\'s dark out here. Get back to the van.';
+  else if (S.thirst<20) hint='You\'re parched — drink (X)';
   else if (packUsed()>=S.packCap) hint='Backpack full — click the van to unload';
   document.getElementById('hint').textContent=hint;
 }
@@ -1177,6 +1309,12 @@ function buildVan(o){
     pts.forEach((q,i)=>{ if (i%1===0){ add(g,GEO.sph,BULBS[i%4],q.x,q.y-.03,q.z,.028,.034,.028); box(g,.014,.02,.014,q.x,q.y-.012,q.z,'#2a2a2a'); } });
     nightLight(g,'#ffb86a',4,5,.85,y-.1,z);
   }
+  if (up.has('rain')){
+    const rc=new THREE.Group(); rc.position.set(.3,0,Z0-.24); g.add(rc);
+    cyl(rc,.15,.44,0,0,0,'#4a6f92',{r:.55}); for (const y of [.08,.3]) cyl(rc,.157,.03,0,y,0,'#34506a'); add(rc,GEO.cyl,mat('#4f9ab4',{r:.15}),0,.442,0,.13,.006,.13);
+    add(rc,GEO.cone,mat('#9aa8b4',{m:.5,r:.4,ds:1}),0,.6,0,.2,.16,.2,Math.PI); add(rc,GEO.cyl8,mat('#9aa8b4',{m:.5,r:.4}),0,.98,.1,.018,.72,.018,.27);
+    box(g,.5,.02,.1,.3,1.3,Z0+.02,'#9aa8b4',{m:.5,r:.4});
+  }
   if (up.has('stove')){
     const st=new THREE.Group(); st.position.set(1.9,0,Z1+.5); st.rotation.y=-.3; g.add(st);
     box(st,.42,.025,.3,0,.3,0,'#9a9a98',CHROME); for (const [a,b] of [[-.19,-.13],[.19,-.13],[-.19,.13],[.19,.13]]) box(st,.018,.3,.018,a,0,b,'#7a7a78',CHROME);
@@ -1206,7 +1344,12 @@ function buildCar(o){
 
 function buildProp(o){
   const g=new THREE.Group(), t=o.type, k=o.seed;
-  if (t==='crate'){
+  if (t==='barrel'){
+    cyl(g,.24,.62,.5,0,.5,'#4a6f92',{r:.55}); for (const y of [.08,.3,.52]) cyl(g,.25,.035,.5,y,.5,'#34506a',{r:.5}); cyl(g,.25,.03,.5,.6,.5,'#5f86aa',{r:.5});
+    if (!o.searched) add(g,GEO.cyl,mat('#4f9ab4',{r:.15}),.5,.612,.5,.21,.008,.21); else add(g,GEO.cyl,mat('#1c2a33'),.5,.57,.5,.21,.008,.21);
+    add(g,GEO.cyl8,mat('#8a9aa8',{m:.5,r:.4}),.5,.86,.3,.025,.5,.025,-.5,0,0); add(g,GEO.cyl,mat('#8a9aa8',{m:.5,r:.4,ds:1}),.5,1.08,.2,.09,.05,.09);
+    box(g,.34,.03,.34,.5,0,.5,'#6b6259');
+  } else if (t==='crate'){
     const wd=o.searched?'#8a6a48':'#a67c48', dk='#6a4c2c', h=.44; const c=new THREE.Group(); c.position.set(.5,0,.5); c.rotation.y=(k-.5)*.5; g.add(c);
     box(c,.54,h,.54,0,0,0,wd,{r:.95});
     for (const [a,b] of [[-.27,-.27],[.27,-.27],[-.27,.27],[.27,.27]]) box(c,.06,h+.01,.06,a,0,b,dk);
@@ -1214,6 +1357,7 @@ function buildProp(o){
     add(c,GEO.box,mat(dk),0,h/2,.28,.6,.045,.02,0,0,.62); add(c,GEO.box,mat(dk),.28,h/2,0,.02,.045,.6,.62,0,0);
     if (o.searched){ box(c,.48,.02,.48,0,h-.03,0,'#2a1e16'); add(c,GEO.box,mat(wd),.42,.2,.05,.56,.04,.56,0,.2,1.15); for(let i=0;i<5;i++) add(c,GEO.box,mat('#d9c48a'),(hash2(i,o.x)-.5)*.4,h-.02,(hash2(o.y,i)-.5)*.4,.14,.008,.012,0,i,0); }
     else { box(c,.56,.04,.56,0,h,0,wd,{r:.95}); for (const z of [-.18,0,.18]) box(c,.57,.012,.012,0,h+.035,z,dk); box(c,.16,.1,.006,0,.2,.273,'#e6dcc0'); }
+    if (o.locked && !o.searched){ for (const y of [.1,.3]){ box(c,.585,.04,.585,0,y,0,'#5a5a62',{m:.7,r:.4}); } box(c,.06,h+.02,.585,0,0,0,'#5a5a62',{m:.7,r:.4}); rbox(c,.1,.1,.05,0,.26,.31,'#c9a83a',{m:.7,r:.3},.015); add(c,new THREE.TorusGeometry(.035,.012,6,12,Math.PI),mat('#9a9aa0',{m:.8,r:.3}),0,.31,.31); }
   } else if (t==='shelf'){
     const c=new THREE.Group(); c.position.set(.5,0,.5); g.add(c);
     box(c,.04,.92,.3,-.4,0,0,'#6e5a4c'); box(c,.04,.92,.3,.4,0,0,'#6e5a4c'); box(c,.8,.9,.02,0,0,-.14,'#5a4a3e');
@@ -1300,6 +1444,12 @@ function makePerson(kind, look=.5){
     rbox(r.pack,.23,.27,.13,0,0,0,'#9a7a4c',{r:1},.04); rbox(r.pack,.235,.08,.14,0,.1,0,'#7a5e38',{r:1},.03); rbox(r.pack,.15,.11,.05,0,-.05,-.075,'#86683e',{r:1},.02); box(r.pack,.03,.05,.01,0,.07,-.072,'#c9b26a',{m:.6,r:.4});
     rod(r.pack,.052,.27,0,.185,0,'x','#5d7a52',{r:1}); for (const s of [-1,1]) rod(r.pack,.055,.025,s*.08,.185,0,'x','#2c2c2e');
     add(r.pack,GEO.cyl8,mat('#6a4c2c'),.135,-.02,0,.012,.3,.012); box(r.pack,.02,.07,.09,.135,.12,.02,'#8d8d8a',{m:.7,r:.3});
+    r.held={}; const hand=new THREE.Group(); hand.position.set(0,-.17,.02); r.arms[1].el.add(hand);
+    const held=(id,fn)=>{ const w=new THREE.Group(); fn(w); w.visible=false; hand.add(w); r.held[id]=w; };
+    held('hatchet',w=>{ add(w,GEO.cyl8,mat('#6a4c2c'),0,0,.1,.013,.36,.013,Math.PI/2); box(w,.022,.11,.1,0,-.07,.25,'#8d8d8a',{m:.7,r:.3}); box(w,.024,.11,.02,0,-.07,.3,'#c9c9c4',{m:.8,r:.2}); });
+    held('spear',w=>{ add(w,GEO.cyl8,mat('#7a5a34'),0,0,.22,.011,.95,.011,Math.PI/2); add(w,GEO.cone,mat('#b9b9b4',{m:.8,r:.3}),0,0,.76,.024,.14,.024,Math.PI/2); add(w,GEO.cyl8,mat('#3a2a1c'),0,0,.67,.016,.05,.016,Math.PI/2); });
+    held('crowbar',w=>{ add(w,GEO.cyl8,mat('#3f566e',{m:.7,r:.35}),0,0,.14,.014,.46,.014,Math.PI/2); add(w,GEO.cyl8,mat('#3f566e',{m:.7,r:.35}),0,.03,.38,.014,.09,.014,.5); add(w,GEO.box,mat('#c7493a'),0,0,-.07,.03,.03,.06); });
+    held('molotov',w=>{ cyl(w,.03,.1,0,-.02,.05,'#4f7a52',{r:.2}); cyl(w,.012,.05,0,.08,.05,'#4f7a52',{r:.2}); box(w,.02,.05,.02,0,.12,.05,'#e6dcc6'); ball(w,.016,0,.18,.05,'#ff9a2e',{e:'#ff7a1e',ei:2}); });
     r.guitar=new THREE.Group(); r.guitar.position.set(.02,.14,.13); r.guitar.rotation.set(0,0,.5); r.guitar.visible=false; r.torso.add(r.guitar);
     add(r.guitar,GEO.cyl,mat('#c98a4a',{r:.5}),0,0,0,.1,.05,.1,Math.PI/2); add(r.guitar,GEO.cyl,mat('#c98a4a',{r:.5}),0,.11,0,.075,.05,.075,Math.PI/2); add(r.guitar,GEO.cyl,mat('#2a1e16'),0,.03,.026,.03,.004,.03,Math.PI/2); box(r.guitar,.03,.3,.02,0,.16,.01,'#5a3c24'); box(r.guitar,.045,.06,.02,0,.46,.01,'#3a2616');
   }
@@ -1337,7 +1487,7 @@ function animPerson(r, st, dt){
 
 // ---- building / syncing the scene with the simulation ------------------
 cam = {x:0, y:0, yaw:Math.PI/4, yawT:Math.PI/4, el:.68, view:12.5, follow:true};
-const PROXY = {van:[1.9,1.4,.8], car:[.95,.6,.7], crate:[.62,.5,.62], shelf:[.86,.95,.4], pump:[.5,1.05,.45], bush:[.7,.5,.7], crop:[.8,.5,.4], fire:[.8,.45,.8], tree:[.5,1.7,.5]};
+const PROXY = {barrel:[.6,.75,.6], van:[1.9,1.4,.8], car:[.95,.6,.7], crate:[.62,.5,.62], shelf:[.86,.95,.4], pump:[.5,1.05,.45], bush:[.7,.5,.7], crop:[.8,.5,.4], fire:[.8,.45,.8], tree:[.5,1.7,.5]};
 const pickMat = new THREE.MeshBasicMaterial({visible:false});
 function inScene(o){ while (o.parent) o=o.parent; return o===scene; }
 function shared(g){ return Object.values(GEO).includes(g) || g===PINE || g===OAK || g===BLADE || [...RB.values()].includes(g); }
@@ -1417,8 +1567,9 @@ function syncActors(dt){
   // player
   const pr=V.player; pr.g.visible=!P.hidden; pr.g.position.set(P.x, TILE_H(tileAt(Math.floor(P.x),Math.floor(P.y))), P.y);
   let dir=P.dir; if (S.activity){ const f=M.objs.find(o=>o.type==='fire'&&o.burn>0&&dist(P.x,P.y,o.x+.5,o.y+.5)<4); if (f) dir=Math.atan2(f.y+.5-P.y,f.x+.5-P.x); }
-  animPerson(pr,{dir,moving:P.path.length>0,crouch:S.crouch&&!P.sit,sit:P.sit,work:!!(P.act&&P.act.kind==='work')||(S.activity&&(S.activity.id==='cook'||S.activity.id==='tinker')),attack:P.anim>0,guitar:!!(S.activity&&S.activity.id==='guitar'),phase:t*(S.crouch?7.5:11.5)},dt);
+  animPerson(pr,{dir,moving:P.path.length>0,crouch:S.crouch&&!P.sit,sit:P.sit,work:!!(P.act&&P.act.kind==='work')||(S.activity&&['cook','tinker','boil'].includes(S.activity.id)),attack:P.anim>0,guitar:!!(S.activity&&S.activity.id==='guitar'),phase:t*(S.crouch?7.5:11.5)},dt);
   pr.pack.scale.setScalar(.82+.36*packUsed()/S.packCap);
+  const wid=curW().id; for (const id in pr.held) pr.held[id].visible = id===wid && !P.sit && !(P.act&&P.act.kind==='work');
   // zombies
   const alive=new Set(M.zs);
   for (const z of M.zs){ let v=V.zs.get(z); if (!v){ const r=makePerson('zombie',z.look??.5); r.lookSide=(z.look??.5)>.5?1:-1; r.g.rotation.y=Math.PI/2-z.dir; world.add(r.g); v={r,cone:makeCone()}; V.zs.set(z,v); }
@@ -1445,13 +1596,15 @@ function syncFx(dt){
   // fireflies
   f.flies.visible=n>.4; if (f.flies.visible){ const fa=f.flies.geometry.attributes.position.array, fc=f.flies.geometry.attributes.color.array; f.flyData.forEach((d,k)=>{ fa[k*3]=d.x+Math.sin(t*.5*d.s+d.p)*.7; fa[k*3+1]=.35+Math.sin(t+d.p)*.2; fa[k*3+2]=d.y+Math.cos(t*.4*d.s+d.p*2)*.7; const g_=Math.max(0,Math.sin(t*1.6*d.s+d.p*3))*n; fc[k*3]=.75*g_; fc[k*3+1]=g_; fc[k*3+2]=.45*g_; }); f.flies.geometry.setDrawRange(0,f.flyData.length); f.flies.geometry.attributes.position.needsUpdate=true; f.flies.geometry.attributes.color.needsUpdate=true; }
   // blood decals
-  while (V.decals<M.decals.length){ const d=M.decals[V.decals++], m=new THREE.Mesh(GEO.circle,mat('#4a1010',{r:.4})); m.rotation.x=-Math.PI/2; m.rotation.z=d.a; m.position.set(d.x,.012+V.decals*.0004,d.y); m.scale.set(d.r*1.3,d.r,1); m.receiveShadow=true; f.decals.add(m); }
+  while (V.decals<M.decals.length){ const d=M.decals[V.decals++], m=new THREE.Mesh(GEO.circle,mat(d.scorch?'#17130f':'#4a1010',{r:d.scorch?1:.4})); m.rotation.x=-Math.PI/2; m.rotation.z=d.a; m.position.set(d.x,.012+V.decals*.0004,d.y); m.scale.set(d.r*1.3,d.r,1); m.receiveShadow=true; f.decals.add(m); }
   // markers
   f.hoverZ.visible=!!hover.z && S.mode!=='build'; if (f.hoverZ.visible){ f.hoverZ.position.set(hover.z.x,.05,hover.z.y); f.hoverZ.material.color.set(hover.z.state==='chase'?'#ff5d5d':'#8fd18b'); }
   const o=hover.obj; f.outline.visible=!!o && !hover.z && S.mode!=='build'; if (f.outline.visible){ f.outline.position.set(o.x-.04,0,o.y-.04); f.outline.scale.set(o.w+.08,1,o.h+.08); }
   f.marker.visible=!!(M.marker&&M.marker.life>0); if (f.marker.visible){ M.marker.life-=dt; f.marker.position.set(M.marker.x,.05,M.marker.y); f.marker.scale.setScalar(1.5-M.marker.life*.6); f.marker.material.opacity=Math.max(0,M.marker.life); }
   f.dots.forEach((d,k)=>{ const nn=P.path[k]; d.visible=!!nn; if (nn) d.position.set(nn.x+.5,.045,nn.y+.5); });
-  const bm=S.mode==='build'; f.radius.visible=bm; f.ghost.visible=bm&&!!hover.tile; if (bm){ f.radius.position.set(M.van.x+1,0,M.van.y+.5); if (hover.tile){ f.ghost.position.set(hover.tile.x+.5,.05,hover.tile.y+.5); f.ghost.material.color.set(canPlace(hover.tile.x,hover.tile.y)?'#8fd18b':'#ff5d5d'); } }
+  const bm=S.mode==='build', tm=S.mode==='throw'; f.radius.visible=bm||tm; f.radius.scale.setScalar(tm?8/7.5:1); f.ghost.visible=(bm||tm)&&!!hover.tile;
+  if (tm){ f.radius.position.set(P.x,0,P.y); if (hover.tile){ f.ghost.position.set(hover.tile.x+.5,.05,hover.tile.y+.5); f.ghost.material.color.set(dist(hover.tile.x+.5,hover.tile.y+.5,P.x,P.y)<=8?'#ffd27a':'#ff5d5d'); } }
+  if (bm){ f.radius.position.set(M.van.x+1,0,M.van.y+.5); if (hover.tile){ f.ghost.position.set(hover.tile.x+.5,.05,hover.tile.y+.5); f.ghost.material.color.set(canPlace(hover.tile.x,hover.tile.y)?'#8fd18b':'#ff5d5d'); } }
   for (const v of V.objs.values()) if (v.g.userData.anim) v.g.userData.anim(t);
   for (const fn of V.anim) fn(t);
 }
@@ -1512,9 +1665,11 @@ function pick_(mx,my){
   return {tile:tile||{x:-1,y:-1}, obj, z};
 }
 function tipText(){
-  if (S.mode==='build') return '';
-  if (hover.z){ const zz=hover.z; return zz.state==='chase' ? '⚔ Fight (alert — it will hurt)' : '🗡 Silent takedown'; }
-  const o=hover.obj; if(!o) return '';
+  if (S.mode==='build'||S.mode==='throw') return '';
+  if (hover.z){ const zz=hover.z, wd=WD(); return wd.ranged ? '🔥 Throw molotov' : zz.state==='chase' ? '⚔ Fight (alert — it will hurt)' : wd.silent ? '🗡 Silent takedown' : '👊 Sneak attack (triple damage, no weapon)'; }
+  const o=hover.obj; if(!o) return (hover.tile && tileAt(hover.tile.x,hover.tile.y)===T.WATER) ? '💧 Fill up (dirty water)' : '';
+  if (o.locked) return hasW('crowbar') ? '🔓 Pry open the locked crate (loud)' : '🔒 Locked — needs a crowbar';
+  if (o.type==='barrel') return o.searched ? 'Rain barrel — empty' : '💧 Collect dirty water';
   if (o.type==='van') return '🚐 Van — unload, camp, build, drive';
   if (o.type==='fire') return o.burn>0?'🔥 Campfire — camp activities':'Cold ashes';
   if (o.searched) return OBJ[o.type].act+' — empty';
@@ -1537,8 +1692,10 @@ cv.addEventListener('mousedown',e=>{
   if (S.sleeping){ interruptCozy('You get up in the dark.'); return; }
   const h=pick_(e.clientX,e.clientY);
   if (S.mode==='build'){ place(h.tile.x,h.tile.y); return; }
+  if (S.mode==='throw'){ throwLure(h.tile.x,h.tile.y); return; }
   if (h.z) return orderAttack(h.z);
   if (h.obj) return orderInteract(h.obj);
+  if (tileAt(h.tile.x,h.tile.y)===T.WATER) return orderWater(h.tile.x,h.tile.y);
   orderMove(h.tile.x,h.tile.y);
 });
 addEventListener('mouseup',()=>drag=null);
@@ -1551,11 +1708,15 @@ cv.addEventListener('touchend',e=>{ e.preventDefault(); if(touch&&!touch.moved&&
 
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); keys[k]=true;
-  if (k==='escape'){ if (document.getElementById('modal').style.display==='flex' && S.mode!=='dead' && S.mode!=='won') closeModal(); else if (S.mode==='build') toggleBuild(); return; }
+  if (k==='escape'){ if (document.getElementById('modal').style.display==='flex' && S.mode!=='dead' && S.mode!=='won') closeModal(); else if (S.mode==='build') toggleBuild(); else if (S.mode==='throw') S.mode='play'; return; }
   if (k==='q') cam.yawT+=Math.PI/4; if (k==='z') cam.yawT-=Math.PI/4; if (k==='g') cycleGfx();
   if (S.paused||S.mode==='dead'||S.mode==='won') return;
   if (k==='c') toggleCrouch();
   if (k==='e') eat();
+  if (k==='x') drink();
+  if (k==='v') cycleWeapon();
+  if (k==='h') heal();
+  if (k==='n') toggleThrow();
   if (k==='b') toggleBuild();
   if (k==='r') openCamp();
   if (k==='t') openTravel();
@@ -1573,6 +1734,10 @@ function cycleGfx(){
 function cycleSpeed(){ S.speedMul = S.speedMul===1?2:S.speedMul===2?4:1; }
 document.getElementById('bCrouch').onclick=toggleCrouch;
 document.getElementById('bEat').onclick=eat;
+document.getElementById('bDrink').onclick=drink;
+document.getElementById('bWeapon').onclick=cycleWeapon;
+document.getElementById('bHeal').onclick=heal;
+document.getElementById('bLure').onclick=toggleThrow;
 document.getElementById('bBuild').onclick=toggleBuild;
 document.getElementById('bCamp').onclick=openCamp;
 document.getElementById('bDrive').onclick=openTravel;
@@ -1634,7 +1799,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 // handy for poking at the game from the console
-window.G = { get S(){return S}, get M(){return M}, get P(){return P}, get cam(){return cam}, get V(){return V}, update, loadLocation, orderInteract, orderMove, orderAttack, spawnZombie, place, openCamp, openTravel, closeModal, packUsed, clockStr, renderBuildBar, frame, renderer, scene, camera, THREE };
+window.G = { get S(){return S}, get M(){return M}, get P(){return P}, get cam(){return cam}, get V(){return V}, update, loadLocation, orderInteract, drink, heal, cycleWeapon, gainXP, openCraft, throwLure, toggleThrow, orderWater, curW, orderMove, orderAttack, spawnZombie, place, openCamp, openTravel, closeModal, packUsed, clockStr, renderBuildBar, frame, renderer, scene, camera, THREE };
 newGame();
 requestAnimationFrame(frame);
 </script>
