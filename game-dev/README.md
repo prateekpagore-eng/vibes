@@ -52,6 +52,27 @@ snaps to the pixel grid so panning doesn't shimmer.
 - **G** changes the pixel size (2× to 6×); **Q / Z** rotate the camera.
 - Needs an internet connection for Three.js and the pixel font.
 
+## The opening: "The Last Campsite" (3D version only)
+
+A new game starts with a story-driven tutorial that introduces one mechanic at
+a time. You're a camper at Willowhaven Lake on the night the world ends:
+
+1. **A good evening** — walk to the fire (movement)
+2. **The radio** — play the guitar (camp activities, Comfort)
+3. **Night** — sleep in the van; the emergency alert comes through while you sleep
+4. **The morning after** — eat and drink (Hunger and Thirst appear)
+5. **Taking stock** — open the backpack
+6. **The camp store** — scavenge shelves and find the owner's hatchet
+7. **The note on the door** — unload at the van (van storage appears)
+8. **Not alone** — vision cones, crouching and a silent takedown
+9. **Leaving** — two more on the road; get in the van and drive
+10. **The road** — park, then travel; the lighthouse becomes the goal
+
+Controls and HUD elements only appear once their chapter has introduced them.
+Crafting, building, lures and pets are deliberately left for the player to
+discover afterwards, with a one-line tip the first time each appears. The first
+card has a **Skip the opening** button for repeat plays.
+
 ## Survival systems (3D version only)
 
 The 3D build is the main version and has gameplay the other two don't:
