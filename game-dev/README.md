@@ -68,4 +68,22 @@ The 3D build is the main version and has gameplay the other two don't:
 - **Locked crates** with better loot, and a **throwable lure** to pull zombies
   toward a noise.
 
-Extra keys: **X** drink · **V** switch weapon · **H** heal · **N** throw lure.
+- **Movement modes.** **WASD** moves the player (arrow keys pan the camera).
+  **C** crouch (silent), **Shift** run (loud, carries 4.6 tiles), walking makes
+  faint footsteps.
+- **Backpack screen (I).** See everything you carry, eat, drink, equip weapons
+  and move items in and out of the van's storage.
+- **Drive the van (Enter).** W/S throttle, A/D steer. Driving is always noisy,
+  about 70% louder off the road, and burns fuel. The quiet-exhaust upgrade cuts
+  the noise by 45%. Run zombies over at speed.
+- **Parts and cloth.** Cars, pumps and crates give mechanical parts, needed for
+  most van upgrades. Shelves and crates give cloth for camping gear and
+  first-aid.
+- **Food from plants.** Fruit trees (the leafy ones with red fruit) and berry
+  bushes can be picked.
+- **Pets.** Offer food to a stray dog or cat. The dog fights beside you and
+  growls a warning when something approaches the van at night. The cat slows
+  comfort loss, adds comfort at bedtime and occasionally brings back food.
+
+Extra keys: **I** backpack · **X** drink · **V** switch weapon · **H** heal ·
+**N** throw lure · **Enter** drive/park · **Shift** run.

@@ -54,6 +54,13 @@ button kbd{opacity:.6;font-size:11px;margin-left:4px}
 ul.k{margin:6px 0;padding-left:18px} ul.k li{margin:2px 0}
 #buildbar{left:50%;transform:translateX(-50%);bottom:64px;display:none;gap:6px;pointer-events:auto}
 @media (max-width:700px){#hint{top:auto;bottom:110px;white-space:normal;width:90vw}.bars{grid-template-columns:auto 80px auto}}
+.inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:6px}
+.slot{background:#241b2a;border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;min-height:74px}
+.slot .n{font-size:18px;font-weight:700}.slot .ic{font-size:18px;margin-right:4px}
+.slot button{padding:3px 8px;font-size:12px;margin-right:4px}
+.slot.empty{opacity:.4;align-items:center;justify-content:center}
+.dur{height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}.dur i{display:block;height:100%;background:var(--ember2)}
+#modal .card.wide{width:min(760px,calc(100vw - 32px))}
 </style>
 </head>
 <body>
@@ -70,7 +77,8 @@ ul.k{margin:6px 0;padding-left:18px} ul.k li{margin:2px 0}
 <div id="log" class="hud"></div>
 <div id="buildbar" class="hud card"></div>
 <div id="bar" class="hud">
-  <button id="bCrouch">Crouch<kbd>C</kbd></button>
+  <button id="bCrouch" title="Walk / run / crouch">Walk<kbd>C</kbd></button>
+  <button id="bBag">Bag<kbd>I</kbd></button>
   <button id="bEat">Eat<kbd>E</kbd></button>
   <button id="bDrink">Drink<kbd>X</kbd></button>
   <button id="bWeapon">Weapon<kbd>V</kbd></button>
@@ -78,7 +86,8 @@ ul.k{margin:6px 0;padding-left:18px} ul.k li{margin:2px 0}
   <button id="bLure">Lure<kbd>N</kbd></button>
   <button id="bBuild">Build camp<kbd>B</kbd></button>
   <button id="bCamp">Camp<kbd>R</kbd></button>
-  <button id="bDrive">Drive on<kbd>T</kbd></button>
+  <button id="bVan">Drive van<kbd>⏎</kbd></button>
+  <button id="bDrive">Travel<kbd>T</kbd></button>
   <button id="bRotL" title="Rotate camera">⟲<kbd>Q</kbd></button>
   <button id="bRotR" title="Rotate camera">⟳<kbd>Z</kbd></button>
   <button id="bGfx" title="Graphics quality">Gfx: High<kbd>G</kbd></button>
@@ -114,15 +123,16 @@ const angDiff = (a,b)=>{let d=a-b; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.P
 // ---------------------------------------------------------------------
 let S, M, P, cam;
 const UPGRADES = [
-  {id:'rack',   name:'Roof rack',          cost:{scrap:6,wood:2}, desc:'+15 van storage. Visible on the roof.'},
-  {id:'jerry',  name:'Jerry-can mounts',   cost:{scrap:5},        desc:'+20 fuel tank capacity.'},
-  {id:'engine', name:'Engine tune-up',     cost:{scrap:8},        desc:'Driving burns 30% less fuel.'},
-  {id:'pack',   name:'Hiking backpack',    cost:{scrap:4,wood:1}, desc:'Carry 12 instead of 8.'},
-  {id:'awning', name:'Awning & rug',       cost:{scrap:4,wood:3}, desc:'+12 comfort every night you sleep at the van.'},
-  {id:'lights', name:'Solar string lights',cost:{scrap:5},        desc:'Cozy activities give +50% comfort. Van glow is brighter — and more visible.'},
-  {id:'stove',  name:'Camp stove',         cost:{scrap:4},        desc:'Cook hot meals without a campfire.'},
-  {id:'kit',    name:'Folding barricades', cost:{scrap:6,wood:4}, desc:'Barricades are packed up (wood refunded) when you drive on.'},
-  {id:'rain',   name:'Rain catcher',       cost:{scrap:4,wood:2}, desc:'Collects 2 clean water every dawn.'},
+  {id:'rack',   name:'Roof rack',          cost:{scrap:4,wood:2,parts:1}, desc:'+15 van storage. Visible on the roof.'},
+  {id:'jerry',  name:'Jerry-can mounts',   cost:{scrap:3,parts:1},        desc:'+20 fuel tank capacity.'},
+  {id:'engine', name:'Engine tune-up',     cost:{parts:3,scrap:2},        desc:'Driving burns 30% less fuel.'},
+  {id:'muffler',name:'Quiet exhaust',      cost:{parts:2,scrap:2},        desc:'The van is 45% quieter when you drive it.'},
+  {id:'pack',   name:'Hiking backpack',    cost:{cloth:2,scrap:1},        desc:'Carry 12 instead of 8.'},
+  {id:'awning', name:'Awning & rug',       cost:{cloth:3,wood:2},         desc:'+12 comfort every night you sleep at the van.'},
+  {id:'lights', name:'Solar string lights',cost:{parts:1,scrap:3},        desc:'Cozy activities give +50% comfort. Van glow is brighter — and more visible.'},
+  {id:'stove',  name:'Camp stove',         cost:{parts:1,scrap:3},        desc:'Cook hot meals without a campfire.'},
+  {id:'kit',    name:'Folding barricades', cost:{scrap:4,wood:4},         desc:'Barricades are packed up (wood refunded) when you drive on.'},
+  {id:'rain',   name:'Rain catcher',       cost:{cloth:1,scrap:3,wood:1}, desc:'Collects 2 clean water every dawn.'},
 ];
 const BUILD = [
   {id:'fence', name:'Barricade',  cost:{wood:2},         key:'1', desc:'Blocks zombies. You can climb over.'},
@@ -140,11 +150,11 @@ const WEAPONS = {
 // Blueprints unlock as you level up; everything is crafted at the van's workbench.
 const RECIPES = [
   {id:'hatchet', lvl:1, name:'Hatchet',        cost:{wood:2,scrap:2},  desc:'Chops trees fast. 34 damage, 25 uses.', w:'hatchet'},
-  {id:'aid',     lvl:1, name:'First-aid wrap', cost:{water:1,scrap:1}, desc:'Heals 30 health. Press H to use.'},
+  {id:'aid',     lvl:1, name:'First-aid wrap', cost:{water:1,cloth:1}, desc:'Heals 30 health. Press H to use.'},
   {id:'lure',    lvl:2, name:'Tin-can lure',   cost:{scrap:1},         desc:'Throw it (N) to pull zombies toward the noise.'},
   {id:'spear',   lvl:2, name:'Spear',          cost:{wood:3,scrap:1},  desc:'Long reach and quiet. 50 damage, 16 uses.', w:'spear'},
   {id:'crowbar', lvl:3, name:'Crowbar',        cost:{scrap:5},         desc:'Opens locked crates. 42 damage, 40 uses.', w:'crowbar'},
-  {id:'molotov', lvl:4, name:'Molotov',        cost:{fuel:1,scrap:1},  desc:'Thrown. Burns everything in a small area. Very loud.', w:'molotov'},
+  {id:'molotov', lvl:4, name:'Molotov',        cost:{fuel:1,cloth:1},  desc:'Thrown. Burns everything in a small area. Very loud.', w:'molotov'},
 ];
 const XPL = [0, 50, 130, 250, 420, 650];
 const LOC = {
@@ -162,8 +172,9 @@ const STOPS_TO_GOAL = 6;
 function newGame(){
   S = {
     day:1, min:8*60, stop:0, hp:100, hunger:80, thirst:85, comfort:55, rest:'normal',
-    van:{food:3, fuel:14, scrap:2, wood:5, water:3, dirty:0, cap:30, fuelCap:40, up:new Set()},
-    pack:{food:0, fuel:0, scrap:0, wood:0, water:0, dirty:0}, packCap:8,
+    van:{food:3, fuel:14, scrap:2, wood:5, water:3, dirty:0, parts:0, cloth:1, cap:30, fuelCap:40, up:new Set()},
+    pack:{food:0, fuel:0, scrap:0, wood:0, water:0, dirty:0, parts:0, cloth:0}, packCap:8,
+    gait:'walk', drive:null, input:null, dog:false, cat:false, catT:0,
     xp:0, lvl:1, weapons:[{id:'hatchet',dur:14}], wi:0, aid:0, lures:1,
     crouch:false, speedMul:1, ts:1, activity:null, sleeping:false, mode:'play', build:null,
     kills:0, nightsCamped:0, campBonus:0, warned17:false, warned20:false, spawnedHour:-1, lastHour:8,
@@ -190,6 +201,7 @@ const OBJ = {
   trap:  {move:0, sight:0},
   barrel:{move:1, sight:0, act:'Collect', time:2, noise:0},
   waterhole:{move:0, sight:0, act:'Fill', time:2, noise:0},
+  pet:{move:0, sight:0, act:'Befriend', time:1.4, noise:0},
   fire:  {move:1, sight:0, act:'Camp'},
   van:   {move:1, sight:1, act:'Van'},
 };
@@ -296,19 +308,23 @@ function loadLocation(type, name){
 
   // water in loot, locked crates (better loot, need a crowbar), rain barrels
   for (const o of M.objs){
-    if (o.type==='shelf') o.loot.water=RI(0,1);
-    if (o.type==='car' && rnd()<.35) o.loot.water=1;
-    if (o.type==='crate' && type!=='forest' && rnd()<.28+Math.min(.25,(S.stop||0)*.05)){ o.locked=true; o.loot.scrap=(o.loot.scrap||0)+RI(2,4); o.loot.food=(o.loot.food||0)+RI(1,2); o.loot.water=RI(0,1); }
+    if (o.type==='shelf'){ o.loot.water=RI(0,1); o.loot.cloth=RI(0,1); }
+    if (o.type==='car'){ if (rnd()<.35) o.loot.water=1; o.loot.parts=RI(0,2); }
+    if (o.type==='pump') o.loot.parts=RI(0,1);
+    if (o.type==='crate'){ if (rnd()<.4) o.loot.parts=1; if (rnd()<.3) o.loot.cloth=1; }
+    if (o.type==='tree' && type!=='forest' && (o.seed*7%1)<.42 && rnd()<.6) o.fruit=RI(1,3);   // fruit trees (the leafy ones)
+    if (o.type==='crate' && type!=='forest' && rnd()<.28+Math.min(.25,(S.stop||0)*.05)){ o.locked=true; o.loot.scrap=(o.loot.scrap||0)+RI(2,4); o.loot.food=(o.loot.food||0)+RI(1,2); o.loot.water=RI(0,1); o.loot.parts=(o.loot.parts||0)+RI(1,2); }
   }
   for (let k=0, n={town:4,farm:3,gas:2,forest:1,lake:0,goal:1}[type]; k<n; k++) for (let t=0;t<40;t++){
     const x=RI(2,MW-3), y=RI(roadY+3,MH-3), tt=M.tiles[idx(x,y)];
     if (free(x,y) && (tt===T.GRASS||tt===T.ASPHALT) && dist(x,y,P.x,P.y)>4){ addObj('barrel',x,y,{loot:{dirty:RI(2,4)}}); break; }
   }
+  if (type!=='forest' && type!=='lake') for (let k=0;k<4;k++) for (let t=0;t<30;t++){ const x=RI(2,MW-3), y=RI(roadY+3,MH-3); if (free(x,y) && M.tiles[idx(x,y)]===T.GRASS){ addObj('bush',x,y,{loot:{food:1}}); break; } }
   // zombies
   const [zmin,zmax] = LOC[type].z;
   const n = RI(zmin,zmax) + Math.floor((S.stop||0)/2);
   for (let k=0;k<n;k++) spawnZombie(false);
-  S.sleeping=false; S.activity=null; S.ts=1;
+  S.sleeping=false; S.activity=null; S.ts=1; S.drive=null; S.input=null; spawnPets();
   S.campBonus = type==='lake' ? 15 : 0;
   centerCam(true);
 }
@@ -323,7 +339,7 @@ function spawnZombie(atNight){
   for (let t=0;t<80;t++){
     let x,y;
     if (atNight){ // at the darkness edge, roughly 13-17 tiles from the van
-      const a=R(0,Math.PI*2), r=R(13,17); x=Math.round(M.van.x+1+Math.cos(a)*r); y=Math.round(M.van.y+Math.sin(a)*r);
+      const a=R(0,Math.PI*2), r=R(13,17); x=Math.round(vanC().x+Math.cos(a)*r); y=Math.round(vanC().y+Math.sin(a)*r);
     } else { x=RI(1,MW-2); y=RI(1,MH-2); }
     if (!free(x,y) || dist(x,y,P.x,P.y)<11) continue;
     M.zs.push({x:x+.5, y:y+.5, dir:R(0,6.28), hp:100, state:'wander', sus:0, path:[], repath:0, home:{x:x+.5,y:y+.5},
@@ -380,7 +396,7 @@ function tickTime(gm){
   S.hunger = clamp(S.hunger - gm/60*4, 0, 100);
   S.thirst = clamp(S.thirst - gm/60*5.5*(S.sleeping?.4:1), 0, 100);
   if (S.thirst<=0) S.hp -= gm/60*8;
-  S.comfort = clamp(S.comfort - gm/60*1.2, 0, 100);
+  S.comfort = clamp(S.comfort - gm/60*1.2*(S.cat?.7:1), 0, 100);
   if (S.hunger<=0) S.hp -= gm/60*6;
   else if (S.hunger>50 && S.rest==='rested') S.hp = Math.min(100, S.hp + gm/60*2);
   const h = hourOf();
@@ -415,8 +431,10 @@ function newDay(){
 // ---------------------------------------------------------------------
 //  Inventory helpers
 // ---------------------------------------------------------------------
-const packUsed = ()=>S.pack.food+S.pack.fuel+S.pack.scrap+S.pack.wood+S.pack.water+S.pack.dirty;
-const vanUsed = ()=>S.van.food+S.van.scrap+S.van.wood+S.van.water+S.van.dirty;
+const RES = ['food','water','dirty','fuel','scrap','wood','parts','cloth'];
+const packUsed = ()=>RES.reduce((a,k)=>a+S.pack[k],0);
+const vanUsed = ()=>RES.reduce((a,k)=>a+(k==='fuel'?0:S.van[k]),0);
+const vanC = ()=>({x:M.van.x+M.van.w/2, y:M.van.y+M.van.h/2});
 const NAME = {dirty:'dirty water'};
 const have = (cost)=>Object.entries(cost).every(([k,v])=>S.pack[k]+S.van[k]>=v);
 function spend(cost){ for (const [k,v] of Object.entries(cost)){ let n=v; const a=Math.min(n,S.pack[k]); S.pack[k]-=a; n-=a; S.van[k]-=n; } }
@@ -425,13 +443,13 @@ const nearVan = (r=2.2)=>{ const v=M.van; const cx=clamp(P.x,v.x,v.x+v.w), cy=cl
 function unload(){
   let moved = 0;
   const f = Math.min(S.pack.fuel, S.van.fuelCap - S.van.fuel); S.van.fuel+=f; S.pack.fuel-=f; moved+=f;
-  for (const k of ['food','scrap','wood','water','dirty']){ const n=Math.min(S.pack[k], S.van.cap-vanUsed()); S.van[k]+=n; S.pack[k]-=n; moved+=n; }
+  for (const k of RES){ if (k==='fuel') continue; const n=Math.min(S.pack[k], S.van.cap-vanUsed()); S.van[k]+=n; S.pack[k]-=n; moved+=n; }
   if (moved) log(`Unloaded ${moved} into the van.`, 'good');
   if (packUsed()) log('Van storage is full — upgrade with a roof rack.', 'warn');
 }
 function takeLoot(o){
   const got = [];
-  for (const k of ['fuel','food','scrap','wood','water','dirty']){
+  for (const k of RES){
     const n = Math.min(o.loot[k]||0, S.packCap-packUsed());
     if (n>0){ S.pack[k]+=n; o.loot[k]-=n; got.push(`${n} ${NAME[k]||k}`); }
   }
@@ -495,9 +513,9 @@ function orderWater(tx,ty){ orderInteract({type:'waterhole',x:tx,y:ty,w:1,h:1,lo
 // ---------------------------------------------------------------------
 //  Noise & perception
 // ---------------------------------------------------------------------
-function noise(x,y,r){
+function noise(x,y,r,soft){
   for (const z of M.zs){ if (z.state==='chase') continue; if (dist(z.x,z.y,x,y)<=r){ z.state='investigate'; z.target={x,y}; z.repath=0; z.sus=Math.max(z.sus,.35);} }
-  M.parts.push({ring:true, x, y, r:0, max:r, life:1});
+  M.parts.push({ring:true, x, y, r:0, max:r, life:soft?.5:1});
 }
 function lineClear(ax,ay,bx,by){
   const d=dist(ax,ay,bx,by), n=Math.ceil(d*4);
@@ -511,7 +529,7 @@ function lights(){
   const L=[]; const dk=darkness();
   for (const o of M.objs) if (o.type==='fire' && o.burn>0) L.push({x:o.x+.5,y:o.y+.5,r:5.5,fire:true});
   if (dk>0){
-    L.push({x:M.van.x+1, y:M.van.y+.5, r:S.van.up.has('lights')?4.2:2.4, van:true});
+    L.push({x:vanC().x, y:vanC().y, r:S.van.up.has('lights')?4.2:2.4, van:true});
     if (!P.hidden) L.push({x:P.x,y:P.y,r:1.7,player:true});
   }
   return L;
@@ -544,7 +562,7 @@ function moveAlong(e, speed, dt, onBlocked){
   if (d<=step){ e.x=tx; e.y=ty; e.path.shift(); } else { e.x+=dx/d*step; e.y+=dy/d*step; }
   return true;
 }
-function playerSpeed(){ let s = S.crouch?1.35:2.6; if (S.rest==='rested') s*=1.15; if (S.rest==='restless') s*=.85; if (S.hunger<=0) s*=.8; if (S.thirst<=0) s*=.8; return s; }
+function playerSpeed(){ let s = S.gait==='crouch'?1.35:S.gait==='run'?4.1:2.4; if (S.rest==='rested') s*=1.15; if (S.rest==='restless') s*=.85; if (S.hunger<=0) s*=.8; if (S.thirst<=0) s*=.8; return s; }
 
 function update(dt){
   if (S.mode==='dead'||S.mode==='won') return;
@@ -552,7 +570,10 @@ function update(dt){
   tickTime(sdt*GAME_MIN_PER_SEC);
   if (S.hp<=0) return die();
 
+  if (S.drive) driveStep(sdt);
+  petStep(sdt);
   // ----- player
+  P.moving=false;
   if (!P.hidden){
     if (P.act){
       const a=P.act;
@@ -585,10 +606,23 @@ function update(dt){
         } else if (!P.path.length || (a.re-=sdt)<0){ a.re=.4; const rr=Math.max(1.1,wd.reach-.15); P.path=astar(Math.floor(P.x),Math.floor(P.y),(x,y)=>dist(x+.5,y+.5,z.x,z.y)<rr,z.x,z.y,playerCost)||[]; }
       }
     }
+    if (S.input){            // WASD: walk the player directly, sliding along obstacles
+      if (S.activity) interruptCozy('You get up.');
+      P.path=[]; P.act=null; P.sit=false;
+      const sp=playerSpeed()*sdt, rad=.2, ok=(x,y)=>!blocksMove(Math.floor(x-rad),Math.floor(y-rad),'player')&&!blocksMove(Math.floor(x+rad),Math.floor(y-rad),'player')&&!blocksMove(Math.floor(x-rad),Math.floor(y+rad),'player')&&!blocksMove(Math.floor(x+rad),Math.floor(y+rad),'player');
+      const nx=P.x+S.input.x*sp, ny=P.y+S.input.y*sp;
+      if (ok(nx,P.y)) P.x=nx; if (ok(P.x,ny)) P.y=ny;
+      P.dir=Math.atan2(S.input.y,S.input.x); P.moving=true;
+    }
     if (P.path.length){
       P.sit=false;
-      moveAlong(P, playerSpeed(), sdt);
+      moveAlong(P, playerSpeed(), sdt); P.moving=true;
       if (P.act && P.act.kind==='work'){ P.act=null; }
+    }
+    if (P.moving){           // footsteps: crouching is silent, walking is faint, running carries
+      P.step=(P.step||0)-sdt;
+      if (P.step<=0){ P.step=S.gait==='run'?.3:.45; const r=S.gait==='run'?4.6:S.gait==='walk'?1.5:0; if (r) noise(P.x,P.y,r,true);
+        if (S.gait==='run'){ S.thirst=Math.max(0,S.thirst-.1); S.hunger=Math.max(0,S.hunger-.05); } }
     }
     if (S.activity){
       S.activity.left -= sdt*GAME_MIN_PER_SEC/60;
@@ -646,7 +680,8 @@ function update(dt){
     const o = objAt(Math.floor(z.x),Math.floor(z.y));
     if (o && o.type==='trap'){ removeObj(o); z.hp=0; killZombie(z,false,'trap'); }
     // wake sleeper if van is being pawed
-    if (S.sleeping && dist(z.x,z.y,M.van.x+1,M.van.y+.5)<2.2){ interruptCozy('Something is scratching at the van door.'); }
+    if (S.sleeping && S.dog && dist(z.x,z.y,vanC().x,vanC().y)<5.5){ interruptCozy('Your dog growls low. Something is close.'); }
+    if (S.sleeping && dist(z.x,z.y,vanC().x,vanC().y)<2.2){ interruptCozy('Something is scratching at the van door.'); }
     if (S.activity && dist(z.x,z.y,P.x,P.y)<4.5 && (z.state==='chase'||litAt(z.x,z.y))) interruptCozy('Something moves at the edge of the light.');
   }
   M.zs = M.zs.filter(z=>z.hp>0);
@@ -678,6 +713,8 @@ function killZombie(z, stealth, how){
   gainXP(stealth?18:10);
   if (stealth){ log('Silent takedown.', 'good'); noise(z.x,z.y,1.2); }
   else if (how==='fire') return;
+  else if (how==='van') log('Thump. The bumper takes one.','good');
+  else if (how==='dog') log('Your dog brings it down.','good');
   else if (how==='trap') log('A spike trap did its job.', 'good');
   else log('Zombie down.', 'good');
 }
@@ -685,7 +722,7 @@ function blood(x,y,n){ for(let i=0;i<n*4;i++) M.parts.push({x,y,vx:R(-1.5,1.5),v
 function floatText(x,y,t,col){ M.floats.push({x,y,t,col,z:20,life:1.8}); }
 function interruptCozy(msg){
   if (S.activity){ S.activity=null; S.ts=1; P.sit=false; log(msg,'warn'); }
-  if (S.sleeping){ S.sleeping=false; S.ts=1; P.hidden=false; P.x=M.van.x+1.5; P.y=M.van.y+1.5; log(msg,'warn'); S.comfort=Math.max(0,S.comfort-10); }
+  if (S.sleeping){ S.sleeping=false; S.ts=1; P.hidden=false; besideVan(); log(msg,'warn'); S.comfort=Math.max(0,S.comfort-10); }
   if (S.ts>1 && !S.sleeping) S.ts=1;
 }
 function anyFire(){ return M.objs.some(o=>o.type==='fire'&&o.burn>0); }
@@ -714,9 +751,20 @@ function startAction(a){
   const d=OBJ[o.type];
   if (o.type==='van'){ unload(); openVanMenu(); return; }
   if (o.type==='fire'){ openCamp(); return; }
+  if (o.type==='pet'){
+    const p=o.pet; if (p.state!=='stray') return;
+    if (S.pack.food<1){ log(`The ${p.kind} keeps its distance. Carry some food to offer it.`,'warn'); return; }
+    P.act={kind:'work', t:0, dur:1.4, label:'Befriend', done:()=>{ if (S.pack.food<1) return; S.pack.food--; p.state='follow'; p.path=[]; S[p.kind]=true; gainXP(15); floatText(p.x,p.y,'♥','#ff8aa8');
+      log(p.kind==='dog'?'The dog wolfs it down and falls in beside you. It will fight for you.':'The cat eats, then rubs against your leg. It will keep you company and find food.','cozy'); }};
+    return;
+  }
   if (o.searched){ log('Already picked clean.'); return; }
   if (o.locked && !hasW('crowbar')){ log('Locked tight. A crowbar would open it. (Workbench, level 3)','warn'); return; }
   if (packUsed()>=S.packCap){ log('Backpack full. Unload at the van.','warn'); return; }
+  if (o.type==='tree' && o.fruit>0){
+    P.act={kind:'work', t:0, dur:1.6, label:'Pick', done:()=>{ const n=Math.min(o.fruit,S.packCap-packUsed()); S.pack.food+=n; o.fruit-=n; gainXP(2); floatText(o.x+.5,o.y+.5,`+${n} food`,'#ffd27a'); log(`Picked ${n} fruit.${o.fruit?' There\'s more up there.':''}`,'good'); }};
+    return;
+  }
   const axe = hasW('hatchet');
   const dur = o.locked?3.5 : (o.type==='tree'&&!axe)?6.5 : d.time, nz = o.locked?4.5 : d.noise;
   if (nz) noise(P.x,P.y,nz);
@@ -731,7 +779,94 @@ function startAction(a){
     }
   }};
 }
-function toggleCrouch(){ S.crouch=!S.crouch; }
+// ---- movement modes: each makes a different amount of noise ----
+function setGait(g){ S.gait=g; S.crouch=g==='crouch'; }
+function toggleCrouch(){ setGait(S.gait==='crouch'?'walk':'crouch'); }
+function toggleRun(){ setGait(S.gait==='run'?'walk':'run'); }
+function cycleGait(){ setGait(S.gait==='walk'?'run':S.gait==='run'?'crouch':'walk'); }
+function besideVan(){
+  const v=M.van, c=vanC(); let best=null;
+  for (let y=Math.floor(v.y)-1;y<=Math.floor(v.y)+v.h;y++) for (let x=Math.floor(v.x)-1;x<=Math.floor(v.x)+v.w;x++){
+    if (inb(x,y) && !blocksMove(x,y,'player') && !objAt(x,y)){ const d=dist(x+.5,y+.5,c.x,c.y+.7); if (!best||d<best.d) best={x,y,d}; } }
+  if (best){ P.x=best.x+.5; P.y=best.y+.5; }
+}
+// ---- driving the van around the current location ----
+function enterVan(){
+  if (S.drive) return exitVan();
+  if (S.sleeping||S.mode==='dead'||S.mode==='won') return;
+  if (!nearVan(2.6)){ log('Walk to the van first.','warn'); return; }
+  if (S.activity) interruptCozy('You get up.'); if (S.mode==='build') toggleBuild(); S.mode='play';
+  unload(); const v=M.van, c=vanC();
+  for (let j=0;j<v.h;j++) for (let i=0;i<v.w;i++) if (M.occ[idx(v.x+i,v.y+j)]===v) M.occ[idx(v.x+i,v.y+j)]=null;
+  S.drive={x:c.x, y:c.y, a:(v.rot||0)*Math.PI/2, v:0, acc:0, nz:0}; v.w=2; v.h=1; v.x=c.x-1; v.y=c.y-.5;
+  P.hidden=true; P.path=[]; P.act=null; P.x=c.x; P.y=c.y; cam.follow=true;
+  log(S.van.fuel>0?'Engine on. Roads are quieter than open ground.':'The tank is empty. The engine only coughs.','warn');
+}
+function exitVan(){
+  const D=S.drive, v=M.van, rot=((Math.round(D.a/(Math.PI/2))%4)+4)%4, w=rot%2?1:2, h=rot%2?2:1;
+  const fits=(x,y)=>{ for (let j=0;j<h;j++) for (let i=0;i<w;i++) if (!free(x+i,y+j)) return false; return true; };
+  const x0=Math.round(D.x-w/2), y0=Math.round(D.y-h/2); let spot=null;
+  for (let r=0;r<=3&&!spot;r++) for (let dy=-r;dy<=r&&!spot;dy++) for (let dx=-r;dx<=r;dx++) if (Math.max(Math.abs(dx),Math.abs(dy))===r && fits(x0+dx,y0+dy)){ spot=[x0+dx,y0+dy]; break; }
+  if (!spot){ log('No room to park here.','warn'); return; }
+  v.x=spot[0]; v.y=spot[1]; v.w=w; v.h=h; v.rot=rot; for (let j=0;j<h;j++) for (let i=0;i<w;i++) M.occ[idx(v.x+i,v.y+j)]=v; M.ver=(M.ver||0)+1;
+  S.drive=null; P.hidden=false; besideVan(); P.path=[]; log('Parked. Engine off.');
+}
+function driveStep(sdt){
+  const D=S.drive, up=S.van.up, thr=(keys.w?1:0)-(keys.s?1:0), st=(keys.d?1:0)-(keys.a?1:0);
+  const fx=Math.floor(D.x), fy=Math.floor(D.y), t=inb(fx,fy)?M.tiles[idx(fx,fy)]:T.GRASS, road=t===T.ROAD||t===T.ASPHALT||t===T.DIRT;
+  const fuel=S.van.fuel>0, vmax=fuel?(road?5.2:3.1):0;
+  if (thr&&fuel) D.v+=thr*(thr*D.v<0?9:4.2)*sdt; else D.v*=Math.pow(.12,sdt);
+  D.v=clamp(D.v,-1.8,Math.max(vmax,0)); if (!fuel&&D.v<0) D.v=0; if (Math.abs(D.v)<.03&&!thr) D.v=0;
+  const hit=(x,y,a)=>{ const ca=Math.cos(a), sa=Math.sin(a); for (const k of [-.72,0,.72]){ const px=Math.floor(x+ca*k), py=Math.floor(y+sa*k); if (!inb(px,py)||blocksMove(px,py,'zombie')) return true; } return false; };
+  const na=D.a+st*2.1*sdt*clamp(D.v/2.2,-1,1), step=(a)=>[D.x+Math.cos(a)*D.v*sdt, D.y+Math.sin(a)*D.v*sdt];
+  let [nx,ny]=step(na);
+  if (!hit(nx,ny,na)){ D.x=nx; D.y=ny; D.a=na; }
+  else { [nx,ny]=step(D.a); if (!hit(nx,ny,D.a)){ D.x=nx; D.y=ny; } else { if (Math.abs(D.v)>1.2){ noise(D.x,D.y,7,true); shake=4; } D.v=-D.v*.25; } }
+  const sp=Math.abs(D.v), ca=Math.cos(D.a), sa=Math.sin(D.a);
+  D.acc+=sp*sdt*(road?1/26:1/15)*(up.has('engine')?.7:1);
+  while (D.acc>=1&&S.van.fuel>0){ S.van.fuel--; D.acc--; if (!S.van.fuel) log('Out of fuel.','warn'); }
+  D.nz-=sdt; if (sp>.4&&D.nz<=0){ D.nz=.75; D.loud=(road?5.5:9.5)*(.55+.45*sp/5.2)*(up.has('muffler')?.55:1); noise(D.x,D.y,D.loud,true); }
+  D.road=road;
+  if (sp>.5&&rnd()<sdt*10) M.parts.push({x:D.x-ca*.95,y:D.y-sa*.95,vx:-ca*.4,vy:-sa*.4,z:6,vz:R(8,16),life:1.3,max:1.3,smoke:true});
+  if (!road&&sp>1&&rnd()<sdt*16) M.parts.push({x:D.x-ca*.6+R(-.3,.3),y:D.y-sa*.6+R(-.3,.3),vx:R(-.5,.5),vy:R(-.5,.5),z:2,vz:R(10,30),life:.6,col:'#8a7a5a'});
+  for (const z of M.zs) if (z.hp>0&&sp>1.6&&dist(z.x,z.y,D.x+ca*.6,D.y+sa*.6)<.8){ z.hp=0; killZombie(z,false,'van'); D.v*=.55; shake=6; }
+  P.x=D.x; P.y=D.y; M.van.x=D.x-1; M.van.y=D.y-.5;
+}
+// ---- pets: a dog fights beside you, a cat keeps you company and finds food ----
+function spawnPets(){
+  M.pets=[];
+  for (const kind of ['dog','cat']){
+    if (S[kind]) M.pets.push({kind,x:P.x+(kind==='dog'?.8:-.8),y:P.y+.6,dir:0,path:[],state:'follow',t:0,atk:0,re:0});
+    else if (rnd()<((S.stop||0)===0&&kind==='dog'?1:.45)) for (let k=0;k<80;k++){ const x=RI(2,MW-3), y=RI(9,MH-3); if (free(x,y)&&dist(x,y,P.x,P.y)>6&&dist(x,y,P.x,P.y)<(S.stop?99:16)){ M.pets.push({kind,x:x+.5,y:y+.5,dir:R(0,6),path:[],state:'stray',t:R(1,3),atk:0,re:0,home:{x:x+.5,y:y+.5}}); break; } }
+  }
+}
+function orderPet(p){ orderInteract({type:'pet',x:Math.floor(p.x),y:Math.floor(p.y),w:1,h:1,pet:p}); }
+function petStep(sdt){
+  const inside=!!S.drive||S.sleeping;
+  for (const p of M.pets){
+    p.moving=false; p.t-=sdt; if (p.bite>0) p.bite-=sdt;
+    if (p.state==='stray'){
+      if (dist(p.x,p.y,P.x,P.y)<4&&!P.hidden){ p.path=[]; p.dir+=angDiff(Math.atan2(P.y-p.y,P.x-p.x),p.dir)*Math.min(1,sdt*5); }
+      else if (p.t<=0&&!p.path.length){ p.t=R(2,5); const tx=Math.floor(p.home.x+R(-3,3)), ty=Math.floor(p.home.y+R(-3,3)); if (inb(tx,ty)&&!blocksMove(tx,ty,'zombie')) p.path=astar(Math.floor(p.x),Math.floor(p.y),(x,y)=>x===tx&&y===ty,tx,ty,zombieCost,400)||[]; }
+      if (p.path.length){ moveAlong(p,1.3,sdt); p.moving=true; }
+      continue;
+    }
+    p.in=inside; if (inside){ p.x=P.x; p.y=P.y; p.path=[]; continue; }
+    let tx=P.x, ty=P.y, want=p.kind==='dog'?1.5:2.2, target=null;
+    if (p.kind==='dog'){
+      let bd=7.5; for (const z of M.zs){ if (z.hp<=0) continue; const hot=z.state==='chase'||(P.act&&P.act.kind==='attack'&&P.act.z===z&&P.act.started); if (!hot) continue; const d=dist(z.x,z.y,p.x,p.y); if (d<bd){ bd=d; target=z; } }
+      if (target){ tx=target.x; ty=target.y; want=.85;
+        if (bd<1.05){ p.dir=Math.atan2(ty-p.y,tx-p.x); p.atk-=sdt; if (p.atk<=0){ p.atk=.85; target.hp-=17; target.atk=Math.max(target.atk,.4); blood(target.x,target.y,2); p.bite=.25; if (target.hp<=0) killZombie(target,false,'dog'); } } }
+    }
+    const d=dist(p.x,p.y,tx,ty);
+    if (d>16){ p.x=P.x+.6; p.y=P.y+.6; p.path=[]; continue; }
+    if (d>want){ p.re-=sdt; if (p.re<=0||!p.path.length){ p.re=.35; p.path=astar(Math.floor(p.x),Math.floor(p.y),(x,y)=>dist(x+.5,y+.5,tx,ty)<want,tx,ty,playerCost,900)||[]; }
+      if (p.path.length){ moveAlong(p,(d>4||target)?4.8:Math.max(2.2,playerSpeed()*1.05),sdt); p.moving=true; } }
+    else { p.path=[]; if (!target) p.dir+=angDiff(Math.atan2(P.y-p.y,P.x-p.x),p.dir)*Math.min(1,sdt*3); }
+  }
+  if (S.cat){ S.catT+=sdt*GAME_MIN_PER_SEC; const h=S.min/60%24;
+    if (S.catT>170){ S.catT=0; if (h>7&&h<20&&!S.sleeping&&rnd()<.6){ const where=packUsed()<S.packCap?S.pack:vanUsed()<S.van.cap?S.van:null; if (where){ where.food++; log(pick(['Your cat drops a tin of sardines at your feet, very pleased with itself.','The cat trots back with something edible. You decide not to ask.','A soft thud: the cat has found food again.']),'cozy'); } } } }
+}
 
 // build mode
 function toggleBuild(){
@@ -747,7 +882,7 @@ function renderBuildBar(){
 }
 function canPlace(x,y){
   if (!free(x,y)) return false;
-  if (dist(x+.5,y+.5,M.van.x+1,M.van.y+.5)>7.5) return false;
+  if (dist(x+.5,y+.5,vanC().x,vanC().y)>7.5) return false;
   if (Math.floor(P.x)===x&&Math.floor(P.y)===y) return false;
   if (M.zs.some(z=>Math.floor(z.x)===x&&Math.floor(z.y)===y)) return false;
   return true;
@@ -805,7 +940,7 @@ function openCamp(){
 }
 function addComfort(n){ S.comfort=clamp(S.comfort+n,0,100); floatText(P.x,P.y,`+${Math.round(n)} comfort`,'#ffd27a'); }
 function sleep(){
-  let bonus = S.campBonus + (S.van.up.has('awning')?12:0);
+  let bonus = S.campBonus + (S.van.up.has('awning')?12:0) + (S.cat?8:0) + (S.dog?4:0);
   if (bonus) addComfort(bonus);
   S.sleeping=true; P.hidden=true; P.path=[]; P.act=null; S.ts=14; S.nightsCamped++;
   log('You crawl into the van and pull the blanket up.','cozy');
@@ -825,6 +960,39 @@ function openUpgrades(){
       log(`Installed: ${u.name}.`,'good'); addComfort(5);
     }}; S.ts=6;
   });
+}
+const ICON = {food:'🥫',water:'💧',dirty:'🚱',fuel:'⛽',scrap:'🔩',wood:'🪵',parts:'⚙️',cloth:'🧵'};
+const LABEL = {food:'Food',water:'Clean water',dirty:'Dirty water',fuel:'Fuel',scrap:'Scrap',wood:'Wood',parts:'Parts',cloth:'Cloth'};
+const USES = {food:'Eat it, or cook it at camp',water:'Drink, or craft first-aid',dirty:'Boil at a campfire first',fuel:'Goes in the van\'s tank',scrap:'Weapons and upgrades',wood:'Fires, barricades, weapons',parts:'Van upgrades',cloth:'Camping gear, first-aid'};
+function openPack(){
+  const atVan=nearVan(2.6)&&!S.drive;
+  const slot=(k,n,where)=>`<div class="slot"><span><span class="ic">${ICON[k]}</span>${LABEL[k]} <span class="n">×${n}</span></span><small class="mute">${USES[k]}</small><span>`+
+    (where==='pack'&&k==='food'?'<button data-a="eat">Eat</button>':'')+(where==='pack'&&(k==='water'||k==='dirty')?'<button data-a="drink">Drink</button>':'')+
+    (where==='pack'&&atVan?`<button data-a="store:${k}">Store</button>`:'')+(where==='van'&&k!=='fuel'?`<button data-a="take:${k}">Take 1</button>`:'')+'</span></div>';
+  const grid=(src,where)=>RES.filter(k=>src[k]>0).map(k=>slot(k,src[k],where)).join('')||'<div class="slot empty">Empty</div>';
+  const wslot=(w,i)=>{ const d=WEAPONS[w.id], cur=S.wi===i; return `<div class="slot"><span><span class="ic">${({hatchet:'🪓',spear:'🔱',crowbar:'🔧',molotov:'🔥'})[w.id]}</span>${d.name}${w.id==='molotov'?` <span class="n">×${w.dur}</span>`:''}</span>${w.id==='molotov'?'<small class="mute">Thrown</small>':`<div class="dur"><i style="width:${w.dur/d.max*100}%"></i></div><small class="mute">${w.dur}/${d.max} uses · ${d.dmg} damage</small>`}<span><button data-a="eq:${i}" ${cur?'disabled':''}>${cur?'Equipped':'Equip'}</button></span></div>`; };
+  const fist=`<div class="slot"><span><span class="ic">👊</span>Bare hands</span><small class="mute">14 damage · no silent takedown</small><span><button data-a="eq:${S.weapons.length}" ${S.wi>=S.weapons.length?'disabled':''}>${S.wi>=S.weapons.length?'Equipped':'Use'}</button></span></div>`;
+  modal(`<h2>Backpack <span class="mute" style="font-size:14px;font-weight:400">${packUsed()} / ${S.packCap} carried</span></h2>
+    <div class="inv">${grid(S.pack,'pack')}</div>
+    <h3>Weapons</h3><div class="inv">${S.weapons.map(wslot).join('')}${fist}</div>
+    <h3>Gear</h3><div class="inv">
+      <div class="slot"><span><span class="ic">🩹</span>First-aid wraps <span class="n">×${S.aid}</span></span><small class="mute">Heals 30 health</small><span><button data-a="heal" ${S.aid&&S.hp<100?'':'disabled'}>Use</button></span></div>
+      <div class="slot"><span><span class="ic">🥫</span>Tin-can lures <span class="n">×${S.lures}</span></span><small class="mute">Pulls zombies to a noise</small><span><button data-a="lure" ${S.lures?'':'disabled'}>Throw</button></span></div>
+      ${S.dog?'<div class="slot"><span><span class="ic">🐕</span>Dog</span><small class="mute">Fights beside you, growls a warning at night</small></div>':''}
+      ${S.cat?'<div class="slot"><span><span class="ic">🐈</span>Cat</span><small class="mute">Slows comfort loss, sometimes finds food</small></div>':''}
+    </div>
+    ${atVan?`<h3>In the van <span class="mute" style="font-weight:400">${vanUsed()} / ${S.van.cap} stored · fuel ${S.van.fuel}/${S.van.fuelCap} L</span></h3><div class="inv">${grid(S.van,'van')}</div>`:'<p class="mute">Stand next to the van to move things in and out of storage.</p>'}
+    <div class="row">${atVan?'<button data-a="storeall">Store everything</button>':''}<button data-a="close">Close <kbd>I</kbd></button></div>`,
+  (id)=>{
+    if (id==='close') return closeModal();
+    if (id==='lure'){ closeModal(); return toggleThrow(); }
+    if (id==='eat') eat(); else if (id==='drink') drink(); else if (id==='heal') heal(); else if (id==='storeall') unload();
+    else if (id.startsWith('eq:')) S.wi=+id.slice(3);
+    else if (id.startsWith('take:')){ const k=id.slice(5); if (packUsed()>=S.packCap) log('Backpack full.','warn'); else if (S.van[k]>0){ S.van[k]--; S.pack[k]++; } }
+    else if (id.startsWith('store:')){ const k=id.slice(6), room=k==='fuel'?S.van.fuelCap-S.van.fuel:S.van.cap-vanUsed(), n=Math.min(S.pack[k],room); S.pack[k]-=n; S.van[k]+=n; if (n<=0) log(k==='fuel'?'The tank is full.':'Van storage is full.','warn'); }
+    closeModal(); openPack();
+  });
+  document.getElementById('mcard').classList.add('wide');
 }
 function openCraft(){
   const own = r=>r.w && r.w!=='molotov' && hasW(r.w);
@@ -909,12 +1077,15 @@ function modal(html, cb){
   c.innerHTML=html; m.style.display='flex'; modalCb=cb; if (S.mode==='play'||S.mode==='build') S.paused=true;
   c.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>cb&&cb(b.dataset.a));
 }
-function closeModal(){ document.getElementById('modal').style.display='none'; S.paused=false; modalCb=null; }
+function closeModal(){ document.getElementById('mcard').classList.remove('wide'); document.getElementById('modal').style.display='none'; S.paused=false; modalCb=null; }
 function showIntro(){
   modal(`<h2>Ember Road <span class="mute" style="font-size:13px;font-weight:400">· 3D prototype</span></h2>
   <p>The world ended. You have a camper van, a guitar, and a long road to the coast.</p>
   <h3>Days are tense</h3>
-  <ul class="k"><li><b>Click</b> to move · <b>click</b> crates, cars, pumps, trees, bushes to scavenge (it makes noise)</li>
+  <ul class="k"><li><b>WASD</b> or click to move · <b>click</b> crates, cars, pumps, trees, bushes to scavenge (it makes noise)</li>
+  <li><b>C</b> crouch (silent) · <b>Shift</b> run (loud). Walking makes faint footsteps. Open your backpack with <b>I</b>.</li>
+  <li><b>Enter</b> next to the van to drive it around. It's loud, and louder off the road.</li>
+  <li>Feed a stray <b>dog</b> or <b>cat</b> to keep it. Fruit trees and bushes give food.</li>
   <li>Zombies have <b>vision cones</b>. In the <b>striped</b> far zone, <b>crouching (C)</b> keeps you hidden. Crouch in <b>tall grass</b> to vanish.</li>
   <li>Click an <b>unaware</b> zombie for a silent takedown. Fighting an alert one is loud and hurts.</li>
   <li>Your backpack is small. Walk loot back to the <b>van</b> (click it) to unload.</li>
@@ -927,7 +1098,7 @@ function showIntro(){
   <h3>The road</h3>
   <ul class="k"><li>Each morning: <b>stay</b> (keep your camp, but loot runs dry) or <b>drive on (T)</b> (fresh loot, costs fuel, camp left behind).</li>
   <li>Reach the lighthouse in ${STOPS_TO_GOAL} stops. Don't run out of fuel or food.</li></ul>
-  <p class="mute">Camera: <b>Q / Z</b> rotate · right-drag or WASD to pan · middle-drag to orbit · wheel to zoom · Space to re-center · F speeds up time.</p>
+  <p class="mute">Camera: <b>Q / Z</b> rotate · right-drag or arrow keys to pan · middle-drag to orbit · wheel to zoom · Space to re-center · F speeds up time.</p>
   <div class="row"><button data-a="go">Start driving</button></div>`, ()=>{ closeModal(); initAudio(); });
 }
 function showHelp(){ showIntro(); }
@@ -951,18 +1122,20 @@ function hud(){
     `<span>Thirst</span>${bar(S.thirst,'#5aa9d6')}<span>${Math.round(S.thirst)}</span>`+
     `<span>Comfort</span>${bar(S.comfort,'#ff9a4d')}<span>${Math.round(S.comfort)}${restBadge}</span>`;
   document.getElementById('res').innerHTML =
-    `<div><span>Fuel</span> <b>${S.van.fuel}</b><span>/${S.van.fuelCap}L</span></div><div><span>Food</span> <b>${S.van.food}</b></div><div><span>Scrap</span> <b>${S.van.scrap}</b></div><div><span>Wood</span> <b>${S.van.wood}</b></div><div><span>Water</span> <b>${S.van.water}</b>${S.van.dirty?`<span>+${S.van.dirty} dirty</span>`:''}</div><div><span>Van</span> ${vanUsed()}/${S.van.cap}</div>`;
+    `<div><span>Fuel</span> <b>${S.van.fuel}</b><span>/${S.van.fuelCap}L</span></div><div><span>Food</span> <b>${S.van.food}</b></div><div><span>Scrap</span> <b>${S.van.scrap}</b></div><div><span>Wood</span> <b>${S.van.wood}</b></div><div><span>Water</span> <b>${S.van.water}</b>${S.van.dirty?`<span>+${S.van.dirty} dirty</span>`:''}</div><div><span>Parts</span> <b>${S.van.parts}</b></div><div><span>Cloth</span> <b>${S.van.cloth}</b></div><div><span>Van</span> ${vanUsed()}/${S.van.cap}</div>`;
   const items=Object.entries(S.pack).filter(([,v])=>v).map(([k,v])=>`${v} ${NAME[k]||k}`).join(', ');
   const cw=curW(), wtxt=cw.id==='fists'?'Bare hands':cw.id==='molotov'?`Molotov ×${cw.dur}`:`${WD().name} ${cw.dur}/${WD().max}`;
-  document.getElementById('pack').innerHTML = `🎒 ${packUsed()}/${S.packCap}${items?' — '+items:''}<br>⚔ <b style="color:${cw.id!=='fists'&&cw.id!=='molotov'&&cw.dur<=4?'var(--danger)':'var(--ink)'}">${wtxt}</b>${S.aid?` · 🩹 ${S.aid}`:''}${S.lures?` · 🥫 ${S.lures}`:''}`;
+  document.getElementById('pack').innerHTML = `🎒 ${packUsed()}/${S.packCap}${items?' — '+items:''}<br>⚔ <b style="color:${cw.id!=='fists'&&cw.id!=='molotov'&&cw.dur<=4?'var(--danger)':'var(--ink)'}">${wtxt}</b>${S.aid?` · 🩹 ${S.aid}`:''}${S.lures?` · 🥫 ${S.lures}`:''}${S.dog?' · 🐕':''}${S.cat?' · 🐈':''}`;
   document.getElementById('bHeal').style.display=S.aid?'':'none'; document.getElementById('bLure').style.display=S.lures?'':'none'; document.getElementById('bLure').classList.toggle('on',S.mode==='throw');
   const h=S.min/60%24;
-  document.getElementById('bCrouch').classList.toggle('on',S.crouch);
+  document.getElementById('bCrouch').classList.toggle('on',S.gait!=='walk'); document.getElementById('bCrouch').innerHTML=`${({walk:'Walk',run:'Run',crouch:'Crouch'})[S.gait]}<kbd>C</kbd>`;
+  document.getElementById('bVan').innerHTML=`${S.drive?'Park':'Drive van'}<kbd>⏎</kbd>`; document.getElementById('bVan').classList.toggle('on',!!S.drive);
   document.getElementById('bBuild').classList.toggle('on',S.mode==='build');
   document.getElementById('bDrive').disabled = !(h>=6&&h<17);
   document.getElementById('bSpeed').innerHTML = `${S.speedMul}×<kbd>F</kbd>`;
   let hint='';
-  if (S.sleeping) hint='Sleeping… (click to wake)';
+  if (S.drive) hint=`Driving on ${S.drive.road?'road (quieter)':'open ground (loud)'} — W/S throttle · A/D steer · Enter to park · fuel ${S.van.fuel} L`;
+  else if (S.sleeping) hint='Sleeping… (click to wake)';
   else if (S.activity) hint=`${({cook:'Cooking',fire:'Sitting by the fire',guitar:'Playing guitar',read:'Reading',tinker:'Tinkering',boil:'Boiling water'})[S.activity.id]}… (click anywhere to stop)`;
   else if (S.mode==='throw') hint='Throw the lure: click a spot within 8 tiles · Esc to cancel';
   else if (S.mode==='build') hint=`Building: ${BUILD.find(b=>b.id===S.build).name} — click near the van · 1/2/3 to switch · Esc when done`;
@@ -1322,6 +1495,7 @@ function buildVan(o){
     cyl(st,.06,.07,-.09,.398,0,'#c2c0ba',CHROME); cyl(st,.062,.01,-.09,.468,0,'#a8a6a0',CHROME); ball(st,.012,-.09,.486,0,'#2a2a2c'); box(st,.08,.012,.014,-.17,.44,0,'#2a2a2c');
     cyl(st,.04,.05,.03,.398,0,'#c7493a'); cyl(st,.07,.2,.14,0,.02,'#4a78a8',{r:.5}); ball(st,.02,.14,.21,.02,'#2a2a2c');
   }
+  const hl=new THREE.PointLight('#fff0c8',0,10,1.4); hl.position.set(3.1,.8,.5); g.add(hl); g.userData.head=hl;   // headlights, lit only while driving at night
   return g;
 }
 
@@ -1469,6 +1643,7 @@ function animPerson(r, st, dt){
     T.ls=-1.4+Math.sin(t*1.3+1)*.1; T.rs=-1.25+Math.sin(t*1.1)*.1; T.le=-.18; T.re=-.3;
     if (st.attack){ T.ls=-1.3+Math.sin(t*9)*.55; T.rs=-1.3+Math.sin(t*9+Math.PI)*.55; T.torso=.45; } }
   else {
+    if (st.run){ T.torso+=.24; T.le=-1.1; T.re=-1.1; }
     if (st.crouch){ T.hipY=.25; T.torso=.6; T.head=-.45; T.lh+=-1.05; T.rh+=-1.05; T.lk+=1.75; T.rk+=1.75; T.ls=T.ls*.5-.5; T.rs=T.rs*.5-.5; T.le=-.7; T.re=-.7; }
     if (st.sit){ T.hipY=.2; T.torso=.08; T.lh=-1.45; T.rh=-1.4; T.lk=.55; T.rk=.6; T.ls=-.75; T.rs=-.75; T.le=-.6; T.re=-.6; T.head=.1+Math.sin(t*.7)*.05; }
     if (st.work){ T.torso+=.3; T.ls=-1.15+Math.sin(t*9)*.3; T.rs=-1.15+Math.sin(t*9+2)*.3; T.le=-.6; T.re=-.6; }
@@ -1497,7 +1672,8 @@ const sigOf = o=>o.type==='van'?[...S.van.up].join():o.type==='fence'?Math.ceil(
 function removeView(o){ const v=V.objs.get(o); if (!v) return; world.remove(v.g); freeTree(v.g); if (v.proxy) V.pick.remove(v.proxy); if (V.fireShadow===v.g) V.fireShadow=null; V.objs.delete(o); NIGHT.lights=NIGHT.lights.filter(inScene); }
 function makeView(o){
   removeView(o);
-  const g = o.type==='van'?buildVan(o) : o.type==='car'?buildCar(o) : buildProp(o);
+  let g = o.type==='van'?buildVan(o) : o.type==='car'?buildCar(o) : buildProp(o);
+  if (o.type==='van'){ const w=new THREE.Group(); g.position.set(-1,0,-.5); w.add(g); g=w; }   // pivot at the van's centre so it can turn
   g.position.set(o.x, TILE_H(tileAt(o.x,o.y)), o.y); world.add(g);
   V.objs.set(o,{g, sig:sigOf(o), proxy:addProxy(o)});
 }
@@ -1512,13 +1688,59 @@ function syncObjs(){
 function buildWorld(){
   if (world){ scene.remove(world); freeTree(world); }
   world=new THREE.Group(); scene.add(world);
+  V.pets=new Map(); V.fruit=[];
   V.objs.clear(); V.zs.clear(); V.anim=[]; V.corpses=[]; V.fireShadow=null; V.decals=0; V.ver=-1; NIGHT.lights=[];
   V.pick=new THREE.Group(); world.add(V.pick);
   buildGround(); buildStatic(); buildTrees(); buildGrass();
   V.trees=M.objs.filter(o=>o.type==='tree'); for (const t of V.trees) t._proxy=addProxy(t);
+  for (const t of V.trees) if (t.fruit>0){ const fg=new THREE.Group(), sc=.95+t.seed*.5; fg.position.set(t.x+.5,0,t.y+.5);
+    for (let i=0;i<8;i++){ const a=i/8*6.283+t.seed*9, rr=.4+((i*37)%10)*.014; add(fg,GEO.sph,mat('#d6392c',{r:.35}),Math.cos(a)*rr*sc,(.98+((i*53)%10)*.05)*sc,Math.sin(a)*rr*sc,.06,.06,.06).castShadow=false; }
+    world.add(fg); V.fruit.push({t,fg,n:-1}); }
   V.player=makePerson('player'); world.add(V.player.g);
   V.fx=makeFx(); world.add(V.fx.g);
   syncObjs();
+}
+function syncVan(){
+  const v=M.van, vv=V.objs.get(v); if (!vv) return; const D=S.drive, inner=vv.g.children[0];
+  if (D){ vv.g.position.set(D.x, Math.abs(Math.sin(nowS()*24))*.012*Math.min(1,Math.abs(D.v))*(D.road?.4:1.6), D.y); vv.g.rotation.set(0,-D.a,0); }
+  else { vv.g.position.set(v.x+v.w/2,0,v.y+v.h/2); vv.g.rotation.set(0,-(v.rot||0)*Math.PI/2,0); }
+  if (vv.proxy){ const vert=!D&&(v.rot||0)%2===1; vv.proxy.position.set(v.x+v.w/2,.7,v.y+v.h/2); vv.proxy.scale.set(vert?.8:1.9,1.4,vert?1.9:.8); }
+  if (inner&&inner.userData.head) inner.userData.head.intensity = D ? Math.pow(darkness()/.86,2)*18 : 0;
+  for (const f of V.fruit){ const n=(f.t._gone||!M.objs.includes(f.t))?0:f.t.fruit; if (n!==f.n){ f.n=n; f.fg.children.forEach((m,i)=>m.visible=i<Math.ceil(n*8/3)); } }
+}
+// ---- pets ----
+function makePet(kind){
+  const dog=kind==='dog', g=new THREE.Group(), r={g,kind,legs:[]}, c1=dog?'#b9854a':'#8d929c', c2=dog?'#f1e6cf':'#ecebe6', c3=dog?'#7a5630':'#5a5f6a';
+  const L=dog?.46:.34, H=dog?.19:.13, W=dog?.17:.12, lh=dog?.2:.12;
+  r.body=new THREE.Group(); g.add(r.body);
+  rbox(r.body,W,H,L,0,lh+H/2,0,c1,{r:.95},.05); rbox(r.body,W*.7,H*.5,L*.5,0,lh+H*.28,L*.16,c2,{r:.95},.03);
+  if (dog) rbox(r.body,W*.72,H*.4,L*.34,0,lh+H*.86,-L*.12,c3,{r:.95},.03); else for (const z of [-.08,-.01,.06]) box(r.body,W*1.02,.012,.025,0,lh+H*.99,z,c3);
+  r.head=new THREE.Group(); r.head.position.set(0,lh+H*.95,L/2-.02); r.body.add(r.head);
+  rbox(r.head,W*1.05,dog?.15:.115,dog?.15:.115,0,.05,.05,c1,{r:.95},.045);
+  rbox(r.head,W*(dog?.55:.5),dog?.07:.04,dog?.1:.04,0,.02,dog?.15:.11,c2,{r:.95},.02); ball(r.head,.017,0,.04,dog?.2:.135,'#2a2220');
+  for (const sx of [-1,1]){ ball(r.head,.014,sx*W*.26,.085,dog?.12:.105,dog?'#2a2220':'#9fd06a',dog?undefined:{e:'#6aa83a',ei:.6});
+    if (dog) rbox(r.head,.045,.1,.07,sx*W*.56,.06,.02,c3,{r:.95},.02,[0,0,sx*-.25]); else add(r.head,GEO.cone4,mat(c1),sx*W*.32,.14,.04,.035,.07,.03); }
+  r.collar=box(r.body,W*1.08,.03,.03,0,lh+H*.78,L/2-.07,'#c7493a');
+  for (const [sx,sz] of [[-1,1],[1,1],[-1,-1],[1,-1]]){ const leg=new THREE.Group(); leg.position.set(sx*W*.3,lh,sz*L*.33); r.body.add(leg); rbox(leg,dog?.055:.04,lh,dog?.06:.045,0,-lh/2,0,c1,{r:.95},.018); rbox(leg,dog?.06:.045,.03,dog?.075:.055,0,-lh+.015,.01,c2,{r:.95},.012); r.legs.push(leg); }
+  r.tail=new THREE.Group(); r.tail.position.set(0,lh+H*.85,-L/2+.02); r.body.add(r.tail);
+  if (dog){ add(r.tail,GEO.cyl8,mat(c1),0,.07,-.04,.022,.17,.022,-.6); ball(r.tail,.026,0,.14,-.09,c2); } else { add(r.tail,GEO.cyl8,mat(c3),0,.09,-.03,.014,.2,.014,-.3); add(r.tail,GEO.cyl8,mat(c3),0,.2,-.045,.014,.08,.014,.5); }
+  g.traverse(m=>{ if (m.isMesh){ m.castShadow=true; m.receiveShadow=false; } });
+  r.hit=new THREE.Mesh(GEO.box,pickMat); r.hit.scale.set(.55,.55,.7); r.hit.position.y=.28; g.add(r.hit);
+  return r;
+}
+function syncPets(dt){
+  const t=nowS();
+  for (const p of M.pets){
+    let r=V.pets.get(p); if (!r){ r=makePet(p.kind); r.hit.userData.pet=p; r.g.rotation.y=Math.PI/2-p.dir; world.add(r.g); V.pets.set(p,r); }
+    r.g.visible=!p.in; r.collar.visible=p.state==='follow';
+    r.g.position.set(p.x, TILE_H(tileAt(Math.floor(p.x),Math.floor(p.y))), p.y);
+    const dog=p.kind==='dog', ph=t*(dog?17:15), sw=p.moving?Math.sin(ph)*.75:0;
+    r.legs[0].rotation.x=sw; r.legs[3].rotation.x=sw; r.legs[1].rotation.x=-sw; r.legs[2].rotation.x=-sw;
+    r.body.position.y=p.moving?Math.abs(Math.sin(ph))*.02:0; r.body.rotation.x=p.bite>0?.3:0;
+    r.head.rotation.x=p.bite>0?.5:(p.moving?0:Math.sin(t*.9+(dog?0:2))*.08); r.head.rotation.z=(!p.moving&&p.state==='stray')?Math.sin(t*.6)*.25:0;
+    r.tail.rotation.y=dog?Math.sin(t*(p.state==='follow'?15:5))*.6:Math.sin(t*1.6)*.3; r.tail.rotation.x=dog?0:Math.sin(t*1.1)*.15;
+    const want=Math.PI/2-p.dir; let d=want-r.g.rotation.y; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI; r.g.rotation.y+=d*Math.min(1,dt*12);
+  }
 }
 function centerCam(){ buildWorld(); cam.x=P.x; cam.y=P.y; cam.follow=true; }
 
@@ -1567,7 +1789,7 @@ function syncActors(dt){
   // player
   const pr=V.player; pr.g.visible=!P.hidden; pr.g.position.set(P.x, TILE_H(tileAt(Math.floor(P.x),Math.floor(P.y))), P.y);
   let dir=P.dir; if (S.activity){ const f=M.objs.find(o=>o.type==='fire'&&o.burn>0&&dist(P.x,P.y,o.x+.5,o.y+.5)<4); if (f) dir=Math.atan2(f.y+.5-P.y,f.x+.5-P.x); }
-  animPerson(pr,{dir,moving:P.path.length>0,crouch:S.crouch&&!P.sit,sit:P.sit,work:!!(P.act&&P.act.kind==='work')||(S.activity&&['cook','tinker','boil'].includes(S.activity.id)),attack:P.anim>0,guitar:!!(S.activity&&S.activity.id==='guitar'),phase:t*(S.crouch?7.5:11.5)},dt);
+  animPerson(pr,{dir,moving:P.moving,run:S.gait==='run'&&P.moving,crouch:S.crouch&&!P.sit,sit:P.sit,work:!!(P.act&&P.act.kind==='work')||(S.activity&&['cook','tinker','boil'].includes(S.activity.id)),attack:P.anim>0,guitar:!!(S.activity&&S.activity.id==='guitar'),phase:t*(S.crouch?7.5:S.gait==='run'?17:11.5)},dt);
   pr.pack.scale.setScalar(.82+.36*packUsed()/S.packCap);
   const wid=curW().id; for (const id in pr.held) pr.held[id].visible = id===wid && !P.sit && !(P.act&&P.act.kind==='work');
   // zombies
@@ -1604,7 +1826,7 @@ function syncFx(dt){
   f.dots.forEach((d,k)=>{ const nn=P.path[k]; d.visible=!!nn; if (nn) d.position.set(nn.x+.5,.045,nn.y+.5); });
   const bm=S.mode==='build', tm=S.mode==='throw'; f.radius.visible=bm||tm; f.radius.scale.setScalar(tm?8/7.5:1); f.ghost.visible=(bm||tm)&&!!hover.tile;
   if (tm){ f.radius.position.set(P.x,0,P.y); if (hover.tile){ f.ghost.position.set(hover.tile.x+.5,.05,hover.tile.y+.5); f.ghost.material.color.set(dist(hover.tile.x+.5,hover.tile.y+.5,P.x,P.y)<=8?'#ffd27a':'#ff5d5d'); } }
-  if (bm){ f.radius.position.set(M.van.x+1,0,M.van.y+.5); if (hover.tile){ f.ghost.position.set(hover.tile.x+.5,.05,hover.tile.y+.5); f.ghost.material.color.set(canPlace(hover.tile.x,hover.tile.y)?'#8fd18b':'#ff5d5d'); } }
+  if (bm){ f.radius.position.set(vanC().x,0,vanC().y); if (hover.tile){ f.ghost.position.set(hover.tile.x+.5,.05,hover.tile.y+.5); f.ghost.material.color.set(canPlace(hover.tile.x,hover.tile.y)?'#8fd18b':'#ff5d5d'); } }
   for (const v of V.objs.values()) if (v.g.userData.anim) v.g.userData.anim(t);
   for (const fn of V.anim) fn(t);
 }
@@ -1646,14 +1868,14 @@ function drawOverlay(){
   ctx.font='600 13px ui-sans-serif,system-ui';
   for (const f of M.floats){ const [sx,sy]=toScreen(f.x,1+f.z/40,f.y); ctx.globalAlpha=Math.min(1,f.life); ctx.fillStyle='#000'; ctx.fillText(f.t,sx+1,sy+1); ctx.fillStyle=f.col; ctx.fillText(f.t,sx,sy); }
   ctx.globalAlpha=1;
-  if (S.sleeping){ ctx.fillStyle='rgba(5,5,15,.4)'; ctx.fillRect(0,0,CW,CH); const [sx,sy]=toScreen(M.van.x+1,1.9,M.van.y+.5); ctx.fillStyle='#ffd27a'; ctx.font='600 22px ui-sans-serif'; ctx.fillText('z z z',sx,sy+Math.sin(nowS()*2)*4); }
+  if (S.sleeping){ ctx.fillStyle='rgba(5,5,15,.4)'; ctx.fillRect(0,0,CW,CH); const [sx,sy]=toScreen(vanC().x,1.9,vanC().y); ctx.fillStyle='#ffd27a'; ctx.font='600 22px ui-sans-serif'; ctx.fillText('z z z',sx,sy+Math.sin(nowS()*2)*4); }
   if (S.hp<35){ const g=ctx.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*.3,CW/2,CH/2,Math.max(CW,CH)*.7); g.addColorStop(0,'rgba(120,0,0,0)'); g.addColorStop(1,`rgba(120,0,0,${(35-S.hp)/60})`); ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH); }
 }
 
 // ---------------------------------------------------------------------
 //  Input
 // ---------------------------------------------------------------------
-const hover={tile:null,obj:null,z:null}; let drag=null; const keys={};
+const hover={tile:null,obj:null,z:null,pet:null}; let drag=null; const keys={};
 const raycaster=new THREE.Raycaster(), ndc=new THREE.Vector2(), groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0), _hit=new THREE.Vector3();
 function pick_(mx,my){
   ndc.set(mx/CW*2-1, -(my/CH)*2+1); raycaster.setFromCamera(ndc,camera);
@@ -1662,13 +1884,17 @@ function pick_(mx,my){
   let obj=null; const oh=raycaster.intersectObjects(V.pick.children,false); if (oh.length) obj=oh[0].object.userData.obj;
   if (!obj && tile){ const occ=objAt(tile.x,tile.y); if (occ && OBJ[occ.type].act) obj=occ; }
   if (obj && obj.type==='crop' && obj.searched) obj=null;
-  return {tile:tile||{x:-1,y:-1}, obj, z};
+  let pet=null; const ph=raycaster.intersectObjects([...V.pets.values()].filter(r=>r.g.visible).map(r=>r.hit),false); if (ph.length) pet=ph[0].object.userData.pet;
+  return {tile:tile||{x:-1,y:-1}, obj, z, pet};
 }
 function tipText(){
   if (S.mode==='build'||S.mode==='throw') return '';
+  if (S.drive) return '';
+  if (hover.pet && !hover.z) return hover.pet.state==='stray' ? `${hover.pet.kind==='dog'?'🐕 Stray dog':'🐈 Stray cat'} — offer food to befriend` : (hover.pet.kind==='dog'?'🐕 Your dog':'🐈 Your cat');
   if (hover.z){ const zz=hover.z, wd=WD(); return wd.ranged ? '🔥 Throw molotov' : zz.state==='chase' ? '⚔ Fight (alert — it will hurt)' : wd.silent ? '🗡 Silent takedown' : '👊 Sneak attack (triple damage, no weapon)'; }
   const o=hover.obj; if(!o) return (hover.tile && tileAt(hover.tile.x,hover.tile.y)===T.WATER) ? '💧 Fill up (dirty water)' : '';
   if (o.locked) return hasW('crowbar') ? '🔓 Pry open the locked crate (loud)' : '🔒 Locked — needs a crowbar';
+  if (o.type==='tree' && o.fruit>0) return `🍎 Pick fruit (${o.fruit} left)`;
   if (o.type==='barrel') return o.searched ? 'Rain barrel — empty' : '💧 Collect dirty water';
   if (o.type==='van') return '🚐 Van — unload, camp, build, drive';
   if (o.type==='fire') return o.burn>0?'🔥 Campfire — camp activities':'Cold ashes';
@@ -1690,10 +1916,12 @@ cv.addEventListener('mousedown',e=>{
   if (e.button!==0 || S.paused || S.mode==='dead'||S.mode==='won') return;
   initAudio();
   if (S.sleeping){ interruptCozy('You get up in the dark.'); return; }
+  if (S.drive) return;
   const h=pick_(e.clientX,e.clientY);
   if (S.mode==='build'){ place(h.tile.x,h.tile.y); return; }
   if (S.mode==='throw'){ throwLure(h.tile.x,h.tile.y); return; }
   if (h.z) return orderAttack(h.z);
+  if (h.pet && h.pet.state==='stray') return orderPet(h.pet);
   if (h.obj) return orderInteract(h.obj);
   if (tileAt(h.tile.x,h.tile.y)===T.WATER) return orderWater(h.tile.x,h.tile.y);
   orderMove(h.tile.x,h.tile.y);
@@ -1710,7 +1938,12 @@ addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); keys[k]=true;
   if (k==='escape'){ if (document.getElementById('modal').style.display==='flex' && S.mode!=='dead' && S.mode!=='won') closeModal(); else if (S.mode==='build') toggleBuild(); else if (S.mode==='throw') S.mode='play'; return; }
   if (k==='q') cam.yawT+=Math.PI/4; if (k==='z') cam.yawT-=Math.PI/4; if (k==='g') cycleGfx();
+  if (k==='i'||k==='tab'){ e.preventDefault(); if (document.getElementById('modal').style.display==='flex'){ if (document.getElementById('mcard').classList.contains('wide')) closeModal(); return; } }
   if (S.paused||S.mode==='dead'||S.mode==='won') return;
+  if (k==='enter'){ enterVan(); return; }
+  if (S.drive && !['f',' '].includes(k)) return;      // hands on the wheel
+  if (k==='i'||k==='tab'){ openPack(); return; }
+  if (k==='shift' && !e.repeat) toggleRun();
   if (k==='c') toggleCrouch();
   if (k==='e') eat();
   if (k==='x') drink();
@@ -1732,7 +1965,9 @@ function cycleGfx(){
   document.getElementById('bGfx').innerHTML=`Gfx: ${['Low','Med','High'][gfx]}<kbd>G</kbd>`; log(`Graphics: ${['low (no shadows)','medium','high'][gfx]}.`);
 }
 function cycleSpeed(){ S.speedMul = S.speedMul===1?2:S.speedMul===2?4:1; }
-document.getElementById('bCrouch').onclick=toggleCrouch;
+document.getElementById('bCrouch').onclick=cycleGait;
+document.getElementById('bBag').onclick=()=>{ if (!S.drive) openPack(); };
+document.getElementById('bVan').onclick=enterVan;
 document.getElementById('bEat').onclick=eat;
 document.getElementById('bDrink').onclick=drink;
 document.getElementById('bWeapon').onclick=cycleWeapon;
@@ -1781,6 +2016,11 @@ function ambience(dt){
 let last=performance.now();
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now;
+  { // WASD moves the player relative to the screen, whatever way the camera is turned
+    const ix=(keys.d?1:0)-(keys.a?1:0), iy=(keys.w?1:0)-(keys.s?1:0);
+    if ((ix||iy) && !S.drive && !S.paused && S.mode!=='dead' && S.mode!=='won'){ const sn=Math.sin(cam.yaw), cs=Math.cos(cam.yaw), wx=sn*ix-cs*iy, wy=-cs*ix-sn*iy, l=Math.hypot(wx,wy)||1; S.input={x:wx/l,y:wy/l}; cam.follow=true; }
+    else S.input=null;
+  }
   if (!S.paused){
     if (!S.activity && !S.sleeping && S.ts!==S.speedMul) S.ts=S.speedMul;
     const steps = Math.max(1, Math.ceil(S.ts/3));
@@ -1788,18 +2028,18 @@ function frame(now){
     ambience(dt);
   }
   const pan=620*dt;
-  if (keys['w']||keys['arrowup']) panBy(0,-pan); if (keys['s']||keys['arrowdown']) panBy(0,pan);
-  if (keys['a']||keys['arrowleft']) panBy(pan,0); if (keys['d']||keys['arrowright']) panBy(-pan,0);
+  if (keys['arrowup']) panBy(0,-pan); if (keys['arrowdown']) panBy(0,pan);
+  if (keys['arrowleft']) panBy(pan,0); if (keys['arrowright']) panBy(-pan,0);
   if (cam.follow){ cam.x+=(P.x-cam.x)*Math.min(1,dt*5); cam.y+=(P.y-cam.y)*Math.min(1,dt*5); }
   uTime.value=nowS();
-  syncObjs(); syncActors(dt); syncFx(dt); atmosphere(); updateCamera(dt);
+  syncObjs(); syncVan(); syncActors(dt); syncPets(dt); syncFx(dt); atmosphere(); updateCamera(dt);
   renderer.render(scene,camera);
   drawOverlay();
   if ((hudT-=dt)<=0){ hudT=.1; hud(); }
   requestAnimationFrame(frame);
 }
 // handy for poking at the game from the console
-window.G = { get S(){return S}, get M(){return M}, get P(){return P}, get cam(){return cam}, get V(){return V}, update, loadLocation, orderInteract, drink, heal, cycleWeapon, gainXP, openCraft, throwLure, toggleThrow, orderWater, curW, orderMove, orderAttack, spawnZombie, place, openCamp, openTravel, closeModal, packUsed, clockStr, renderBuildBar, frame, renderer, scene, camera, THREE };
+window.G = { get S(){return S}, get M(){return M}, get P(){return P}, get cam(){return cam}, get V(){return V}, update, loadLocation, orderInteract, enterVan, exitVan, openPack, setGait, orderPet, get keys(){return keys}, drink, heal, cycleWeapon, gainXP, openCraft, throwLure, toggleThrow, orderWater, curW, orderMove, orderAttack, spawnZombie, place, openCamp, openTravel, closeModal, packUsed, clockStr, renderBuildBar, frame, renderer, scene, camera, THREE };
 newGame();
 requestAnimationFrame(frame);
 </script>
